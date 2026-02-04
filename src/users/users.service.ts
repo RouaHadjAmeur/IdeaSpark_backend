@@ -1,54 +1,83 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
 export class UsersService {
-    constructor(
-        @InjectRepository(User)
-        private readonly usersRepository: Repository<User>,
-    ) { }
+  constructor(
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+  ) {}
 
-    async create(userData: Partial<User>): Promise<User> {
-        try {
-            const user = this.usersRepository.create(userData);
-            return await this.usersRepository.save(user);
-        } catch (error) {
-            if (error.code === '23505') {
-                // PostgreSQL unique violation error code
-                throw new ConflictException('Email already exists');
-            }
-            throw error;
-        }
+  async create(userData: Partial<User>): Promise<UserDocument> {
+    try {
+      const user = new this.userModel(userData);
+      return await user.save();
+    } catch (error: any) {
+      if (error.code === 11000) {
+        throw new ConflictException('Email already exists');
+      }
+      throw error;
     }
+  }
 
-    async findByEmail(email: string): Promise<User | null> {
-        return this.usersRepository.findOne({
-            where: { email },
-            select: ['id', 'email', 'password', 'name', 'phone', 'profilePicture', 'auth0Sub', 'createdAt', 'updatedAt'],
-        });
+  async findByEmail(email: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({ email })
+      .select('+password')
+      .exec();
+  }
+
+  async findByEmailWithVerification(email: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({ email })
+      .select('+password +emailVerificationCode +emailVerificationCodeExpiresAt')
+      .exec();
+  }
+
+  async setVerificationCode(
+    email: string,
+    code: string,
+    expiresAt: Date,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { email },
+        { $set: { emailVerificationCode: code, emailVerificationCodeExpiresAt: expiresAt } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async activateUserAndClearCode(email: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { email },
+        {
+          $set: { status: 'active' },
+          $unset: { emailVerificationCode: 1, emailVerificationCodeExpiresAt: 1 },
+        },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async findById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findById(id).exec();
+  }
+
+  async findByAuth0Sub(auth0Sub: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ auth0Sub }).exec();
+  }
+
+  async updateUser(id: string, updateData: Partial<User>): Promise<UserDocument> {
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
+      .exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-
-    async findById(id: string): Promise<User | null> {
-        return this.usersRepository.findOne({
-            where: { id },
-        });
-    }
-
-    async findByAuth0Sub(auth0Sub: string): Promise<User | null> {
-        return this.usersRepository.findOne({
-            where: { auth0Sub },
-        });
-    }
-
-    async updateUser(id: string, updateData: Partial<User>): Promise<User> {
-        const user = await this.findById(id);
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
-
-        Object.assign(user, updateData);
-        return this.usersRepository.save(user);
-    }
+    return user;
+  }
 }

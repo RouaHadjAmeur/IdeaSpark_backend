@@ -4,12 +4,16 @@ import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendCodeDto } from './dto/resend-code.dto';
+import { GoogleTokenDto } from './dto/google-token.dto';
+import { FacebookTokenDto } from './dto/facebook-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 import { FacebookOAuthGuard } from './guards/facebook-oauth.guard';
 import { OAuthCallbackGuard } from './guards/oauth-callback.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { User } from '../users/schemas/user.schema';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -153,6 +157,58 @@ export class AuthController {
         return this.authService.login(loginDto);
     }
 
+    @Post('verify-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Verify email with code',
+        description: 'Submit the 6-digit code received by email to activate the account. Returns user and JWT.',
+    })
+    @ApiBody({ type: VerifyEmailDto })
+    @ApiResponse({ status: 200, description: 'Email verified. Returns user and accessToken.' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+    async verifyEmail(@Body() dto: VerifyEmailDto) {
+        return this.authService.verifyEmail(dto.email, dto.code);
+    }
+
+    @Post('resend-code')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Resend verification code',
+        description: 'Send a new 6-digit code to the user email.',
+    })
+    @ApiBody({ type: ResendCodeDto })
+    @ApiResponse({ status: 200, description: 'Code sent.' })
+    @ApiResponse({ status: 400, description: 'User not found or already verified.' })
+    async resendCode(@Body() dto: ResendCodeDto) {
+        return this.authService.resendVerificationCode(dto.email);
+    }
+
+    @Post('google')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Login with Google (mobile)',
+        description: 'Exchange Google ID token from the mobile app for a JWT. Use the idToken from google_sign_in (Flutter).',
+    })
+    @ApiBody({ type: GoogleTokenDto })
+    @ApiResponse({ status: 200, description: 'Returns user and accessToken (JWT).' })
+    @ApiResponse({ status: 401, description: 'Invalid Google ID token.' })
+    async loginGoogle(@Body() body: GoogleTokenDto) {
+        return this.authService.loginWithGoogleIdToken(body.idToken);
+    }
+
+    @Post('facebook')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Login with Facebook (mobile)',
+        description: 'Exchange Facebook access token from the mobile app for a JWT. Use the token from flutter_facebook_auth.',
+    })
+    @ApiBody({ type: FacebookTokenDto })
+    @ApiResponse({ status: 200, description: 'Returns user and accessToken (JWT).' })
+    @ApiResponse({ status: 401, description: 'Invalid Facebook access token.' })
+    async loginFacebook(@Body() body: FacebookTokenDto) {
+        return this.authService.loginWithFacebookAccessToken(body.accessToken);
+    }
+
     @Get('profile')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -205,7 +261,7 @@ export class AuthController {
         status: 302,
         description: 'Redirects to Google OAuth consent screen',
     })
-    loginGoogle(@Query('connection') connection: string, @Res() res: Response) {
+    loginGoogleRedirect(@Query('connection') connection: string, @Res() res: Response) {
         // Guard handles the redirect automatically
     }
 
@@ -224,7 +280,7 @@ export class AuthController {
         status: 302,
         description: 'Redirects to Facebook OAuth consent screen',
     })
-    loginFacebook(@Query('connection') connection: string, @Res() res: Response) {
+    loginFacebookRedirect(@Query('connection') connection: string, @Res() res: Response) {
         // Guard handles the redirect automatically
     }
 
