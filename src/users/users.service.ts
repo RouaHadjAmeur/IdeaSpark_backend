@@ -71,6 +71,13 @@ export class UsersService {
     return this.userModel.findOne({ auth0Sub }).exec();
   }
 
+  async findByAuth0SubWithVerification(auth0Sub: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({ auth0Sub })
+      .select('+emailVerificationCode +emailVerificationCodeExpiresAt')
+      .exec();
+  }
+
   async updateUser(id: string, updateData: Partial<User>): Promise<UserDocument> {
     const user = await this.userModel
       .findByIdAndUpdate(id, { $set: updateData }, { new: true })
@@ -79,5 +86,50 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  async setDeleteAccountCode(
+    userId: string,
+    code: string,
+    expiresAt: Date,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { deleteAccountCode: code, deleteAccountCodeExpiresAt: expiresAt } },
+        { new: true },
+      )
+      .select('+deleteAccountCode +deleteAccountCodeExpiresAt')
+      .exec();
+  }
+
+  async findByIdWithDeleteCode(userId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findById(userId)
+      .select('+deleteAccountCode +deleteAccountCodeExpiresAt')
+      .exec();
+  }
+
+  async verifyAndClearDeleteCode(userId: string, code: string): Promise<boolean> {
+    const user = await this.findByIdWithDeleteCode(userId);
+    if (!user) return false;
+    const doc = user as any;
+    const stored = doc.deleteAccountCode;
+    const expiresAt = doc.deleteAccountCodeExpiresAt as Date | undefined;
+    if (!stored || !expiresAt || new Date() > expiresAt) return false;
+    if (stored !== code) return false;
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $unset: { deleteAccountCode: 1, deleteAccountCodeExpiresAt: 1 },
+      })
+      .exec();
+    return true;
+  }
+
+  async deleteById(userId: string): Promise<void> {
+    const result = await this.userModel.findByIdAndDelete(userId).exec();
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
   }
 }

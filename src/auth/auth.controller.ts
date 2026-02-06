@@ -8,6 +8,8 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendCodeDto } from './dto/resend-code.dto';
 import { GoogleTokenDto } from './dto/google-token.dto';
 import { FacebookTokenDto } from './dto/facebook-token.dto';
+import { ConfirmDeleteAccountDto } from './dto/confirm-delete-account.dto';
+import { GoogleVerifyDto } from './dto/google-verify.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 import { FacebookOAuthGuard } from './guards/facebook-oauth.guard';
@@ -186,14 +188,45 @@ export class AuthController {
     @Post('google')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
-        summary: 'Login with Google (mobile)',
-        description: 'Exchange Google ID token from the mobile app for a JWT. Use the idToken from google_sign_in (Flutter).',
+        summary: 'Login / Sign up with Google (mobile)',
+        description: 'Exchange Google ID token for a JWT. If the user is new or not yet verified, returns requiresVerification + email and sends a 6-digit code to their email. Use google/verify with that code to complete sign-in.',
     })
     @ApiBody({ type: GoogleTokenDto })
-    @ApiResponse({ status: 200, description: 'Returns user and accessToken (JWT).' })
+    @ApiResponse({
+        status: 200,
+        description: 'Either { user, accessToken } or { requiresVerification: true, email }.',
+    })
     @ApiResponse({ status: 401, description: 'Invalid Google ID token.' })
     async loginGoogle(@Body() body: GoogleTokenDto) {
         return this.authService.loginWithGoogleIdToken(body.idToken);
+    }
+
+    @Post('google/verify')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Verify Google sign-up with code',
+        description: 'Submit the 6-digit code sent by email to complete Google sign-up. Returns user and JWT.',
+    })
+    @ApiBody({ type: GoogleVerifyDto })
+    @ApiResponse({ status: 200, description: 'Returns user and accessToken.' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+    @ApiResponse({ status: 401, description: 'Invalid Google ID token.' })
+    async verifyGoogle(@Body() body: GoogleVerifyDto) {
+        return this.authService.verifyGoogleWithCode(body.idToken, body.code);
+    }
+
+    @Post('google/resend-code')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Resend Google verification code',
+        description: 'Send a new 6-digit code to the user email for pending Google sign-up.',
+    })
+    @ApiBody({ type: GoogleTokenDto })
+    @ApiResponse({ status: 200, description: 'Code sent.' })
+    @ApiResponse({ status: 400, description: 'User not found or already verified.' })
+    @ApiResponse({ status: 401, description: 'Invalid Google ID token.' })
+    async resendGoogleCode(@Body() body: GoogleTokenDto) {
+        return this.authService.resendGoogleCode(body.idToken);
     }
 
     @Post('facebook')
@@ -244,6 +277,39 @@ export class AuthController {
     })
     getProfile(@CurrentUser() user: User) {
         return user;
+    }
+
+    @Post('delete-account/send-code')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({
+        summary: 'Request delete account verification code',
+        description: 'Sends a 6-digit code to the authenticated user\'s email. Use this code in delete-account/confirm to permanently delete the account.',
+    })
+    @ApiResponse({ status: 200, description: 'Code sent to your email.' })
+    @ApiResponse({ status: 401, description: 'Unauthorized.' })
+    async sendDeleteAccountCode(@CurrentUser() user: User) {
+        return this.authService.requestDeleteAccountCode(user);
+    }
+
+    @Post('delete-account/confirm')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({
+        summary: 'Confirm account deletion with code',
+        description: 'Verifies the 6-digit code and permanently deletes the account. The client should clear the session and redirect to login.',
+    })
+    @ApiBody({ type: ConfirmDeleteAccountDto })
+    @ApiResponse({ status: 200, description: 'Account deleted successfully.' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+    @ApiResponse({ status: 401, description: 'Unauthorized.' })
+    async confirmDeleteAccount(
+        @CurrentUser() user: User,
+        @Body() dto: ConfirmDeleteAccountDto,
+    ) {
+        return this.authService.confirmDeleteAccount(user, dto.code);
     }
 
     @Get('login-google')

@@ -47,6 +47,13 @@ export class User {
     @Prop({ select: false })
     emailVerificationCodeExpiresAt?: Date;
 
+    /** 6-digit code sent by email to confirm account deletion. */
+    @Prop({ select: false })
+    deleteAccountCode?: string;
+
+    @Prop({ select: false })
+    deleteAccountCodeExpiresAt?: Date;
+
     @ApiProperty({ description: 'Account creation timestamp' })
     createdAt?: Date;
 

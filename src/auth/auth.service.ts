@@ -17,6 +17,7 @@ function toPlainUser(user: User | UserDocument): Record<string, unknown> {
 }
 
 const CODE_EXPIRY_MINUTES = 15;
+const DELETE_ACCOUNT_CODE_EXPIRY_MINUTES = 15;
 
 function generateSixDigitCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -166,10 +167,16 @@ export class AuthService {
     }
 
     /**
-     * Verify Google ID token from mobile app and return user + JWT.
-     * Requires GOOGLE_CLIENT_ID (Android/iOS client ID) in env.
+     * Verify Google ID token from mobile app.
+     * - If user exists and is active: return user + JWT.
+     * - If user is new or still pending: send 6-digit code to email and return { requiresVerification: true, email }.
      */
-    async loginWithGoogleIdToken(idToken: string): Promise<{ user: Record<string, unknown>; accessToken: string }> {
+    async loginWithGoogleIdToken(
+        idToken: string,
+    ): Promise<
+        | { user: Record<string, unknown>; accessToken: string }
+        | { requiresVerification: true; email: string }
+    > {
         const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
         if (!clientId) {
             throw new UnauthorizedException('Google login is not configured');
@@ -184,18 +191,125 @@ export class AuthService {
             throw new UnauthorizedException('Invalid Google ID token');
         }
         const auth0Sub = `google|${payload.sub}`;
+        const email = payload.email || `${payload.sub.replace(/[^a-zA-Z0-9]/g, '_')}@oauth.local`;
         let user = await this.usersService.findByAuth0Sub(auth0Sub);
         if (!user) {
-            const email = payload.email || `${payload.sub.replace(/[^a-zA-Z0-9]/g, '_')}@oauth.local`;
             user = await this.usersService.create({
                 email,
                 auth0Sub,
                 name: payload.name ?? undefined,
                 profilePicture: payload.picture ?? undefined,
+                status: 'pending',
             });
+            const code = generateSixDigitCode();
+            const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+            await this.usersService.setVerificationCode(email, code, expiresAt);
+            try {
+                await this.mailService.sendVerificationCode(email, code);
+            } catch (err) {
+                console.error('[Auth] Failed to send Google sign-up verification email:', err);
+                console.log(`[Auth] Google verification code for ${email}: ${code}`);
+            }
+            return { requiresVerification: true, email };
+        }
+        const status = (user as any).status;
+        if (status === 'pending') {
+            const code = generateSixDigitCode();
+            const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+            await this.usersService.setVerificationCode(email, code, expiresAt);
+            try {
+                await this.mailService.sendVerificationCode(email, code);
+            } catch (err) {
+                console.error('[Auth] Failed to send Google verification email:', err);
+                console.log(`[Auth] Google verification code for ${email}: ${code}`);
+            }
+            return { requiresVerification: true, email };
         }
         const accessToken = this.generateToken(user);
         return { user: toPlainUser(user), accessToken };
+    }
+
+    /**
+     * Verify the 6-digit code for a Google sign-up and log the user in.
+     */
+    async verifyGoogleWithCode(
+        idToken: string,
+        code: string,
+    ): Promise<{ user: Record<string, unknown>; accessToken: string }> {
+        const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+        if (!clientId) {
+            throw new UnauthorizedException('Google login is not configured');
+        }
+        const client = new OAuth2Client(clientId);
+        let payload: { sub: string; email?: string };
+        try {
+            const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+            payload = ticket.getPayload() as typeof payload;
+            if (!payload?.sub) throw new Error('Invalid token payload');
+        } catch {
+            throw new UnauthorizedException('Invalid Google ID token');
+        }
+        const auth0Sub = `google|${payload.sub}`;
+        const user = await this.usersService.findByAuth0SubWithVerification(auth0Sub);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        const email = user.email;
+        const storedCode = (user as any).emailVerificationCode;
+        const expiresAt = (user as any).emailVerificationCodeExpiresAt as Date | undefined;
+        if (!storedCode || !expiresAt) {
+            throw new BadRequestException('No verification code. Please request a new one.');
+        }
+        if (new Date() > expiresAt) {
+            throw new BadRequestException('Verification code expired. Please request a new one.');
+        }
+        if (storedCode !== code.trim()) {
+            throw new BadRequestException('Invalid verification code');
+        }
+        const updated = await this.usersService.activateUserAndClearCode(email);
+        if (!updated) {
+            throw new BadRequestException('User not found');
+        }
+        const accessToken = this.generateToken(updated);
+        return { user: toPlainUser(updated), accessToken };
+    }
+
+    /**
+     * Resend verification code for pending Google sign-up (by idToken).
+     */
+    async resendGoogleCode(idToken: string): Promise<{ message: string }> {
+        const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+        if (!clientId) {
+            throw new UnauthorizedException('Google login is not configured');
+        }
+        const client = new OAuth2Client(clientId);
+        let payload: { sub: string; email?: string };
+        try {
+            const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+            payload = ticket.getPayload() as typeof payload;
+            if (!payload?.sub) throw new Error('Invalid token payload');
+        } catch {
+            throw new UnauthorizedException('Invalid Google ID token');
+        }
+        const auth0Sub = `google|${payload.sub}`;
+        const user = await this.usersService.findByAuth0Sub(auth0Sub);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        if ((user as any).status === 'active') {
+            return { message: 'Email already verified' };
+        }
+        const email = user.email;
+        const code = generateSixDigitCode();
+        const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+        await this.usersService.setVerificationCode(email, code, expiresAt);
+        try {
+            await this.mailService.sendVerificationCode(email, code);
+        } catch (err) {
+            console.error('[Auth] Failed to resend Google verification email:', err);
+            console.log(`[Auth] Google verification code for ${email}: ${code}`);
+        }
+        return { message: 'Verification code sent' };
     }
 
     /**
@@ -236,5 +350,46 @@ export class AuthService {
         }
         const jwt = this.generateToken(user);
         return { user: toPlainUser(user), accessToken: jwt };
+    }
+
+    /**
+     * Send a 6-digit code to the user's email to confirm account deletion.
+     * Requires the user to be authenticated (JWT).
+     */
+    async requestDeleteAccountCode(user: User | UserDocument): Promise<{ message: string }> {
+        const userId = typeof (user as any).id === 'string' ? (user as any).id : (user as any)._id?.toString();
+        if (!userId) {
+            throw new BadRequestException('User not found');
+        }
+        const fullUser = await this.usersService.findById(userId);
+        if (!fullUser) {
+            throw new BadRequestException('User not found');
+        }
+        const code = generateSixDigitCode();
+        const expiresAt = new Date(Date.now() + DELETE_ACCOUNT_CODE_EXPIRY_MINUTES * 60 * 1000);
+        await this.usersService.setDeleteAccountCode(userId, code, expiresAt);
+        try {
+            await this.mailService.sendDeleteAccountCode(fullUser.email, code);
+        } catch (err) {
+            console.error('[Auth] Failed to send delete-account email:', err);
+            console.log(`[Auth] Delete account code for ${fullUser.email}: ${code}`);
+        }
+        return { message: 'Verification code sent to your email' };
+    }
+
+    /**
+     * Verify the 6-digit code and permanently delete the user account.
+     */
+    async confirmDeleteAccount(user: User | UserDocument, code: string): Promise<{ message: string }> {
+        const userId = typeof (user as any).id === 'string' ? (user as any).id : (user as any)._id?.toString();
+        if (!userId) {
+            throw new BadRequestException('User not found');
+        }
+        const valid = await this.usersService.verifyAndClearDeleteCode(userId, code.trim());
+        if (!valid) {
+            throw new BadRequestException('Invalid or expired code. Please request a new one.');
+        }
+        await this.usersService.deleteById(userId);
+        return { message: 'Account deleted successfully' };
     }
 }

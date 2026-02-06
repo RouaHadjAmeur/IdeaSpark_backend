@@ -41,4 +41,24 @@ export class MailService {
       console.log(`[Mail] Verification code for ${toEmail}: ${code}`);
     }
   }
+
+  async sendDeleteAccountCode(toEmail: string, code: string): Promise<void> {
+    const subject = 'IdeaSpark - Confirmer la suppression du compte';
+    const html = `
+      <p>Bonjour,</p>
+      <p>Vous avez demandé la suppression de votre compte IdeaSpark.</p>
+      <p>Votre code de confirmation est : <strong>${code}</strong></p>
+      <p>Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette suppression, ignorez cet email et changez votre mot de passe.</p>
+    `;
+    if (this.transporter) {
+      await this.transporter.sendMail({
+        from: this.configService.get<string>('SMTP_FROM') || 'IdeaSpark <noreply@ideaspark.com>',
+        to: toEmail,
+        subject,
+        html,
+      });
+    } else {
+      console.log(`[Mail] Delete account code for ${toEmail}: ${code}`);
+    }
+  }
 }
