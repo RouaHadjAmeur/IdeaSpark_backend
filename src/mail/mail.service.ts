@@ -61,4 +61,24 @@ export class MailService {
       console.log(`[Mail] Delete account code for ${toEmail}: ${code}`);
     }
   }
+
+  async sendPasswordResetCode(toEmail: string, code: string): Promise<void> {
+    const subject = 'IdeaSpark - Réinitialisation du mot de passe';
+    const html = `
+      <p>Bonjour,</p>
+      <p>Vous avez demandé la réinitialisation de votre mot de passe IdeaSpark.</p>
+      <p>Votre code est : <strong>${code}</strong></p>
+      <p>Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+    `;
+    if (this.transporter) {
+      await this.transporter.sendMail({
+        from: this.configService.get<string>('SMTP_FROM') || 'IdeaSpark <noreply@ideaspark.com>',
+        to: toEmail,
+        subject,
+        html,
+      });
+    } else {
+      console.log(`[Mail] Password reset code for ${toEmail}: ${code}`);
+    }
+  }
 }

@@ -313,10 +313,16 @@ export class AuthService {
     }
 
     /**
-     * Verify Facebook access token from mobile app and return user + JWT.
-     * Requires FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in env.
+     * Verify Facebook access token from mobile app.
+     * - If user exists and is active: return user + JWT.
+     * - If user is new or still pending: send 6-digit code to email and return { requiresVerification: true, email }.
      */
-    async loginWithFacebookAccessToken(accessToken: string): Promise<{ user: Record<string, unknown>; accessToken: string }> {
+    async loginWithFacebookAccessToken(
+        accessToken: string,
+    ): Promise<
+        | { user: Record<string, unknown>; accessToken: string }
+        | { requiresVerification: true; email: string }
+    > {
         const appId = this.configService.get<string>('FACEBOOK_APP_ID');
         const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
         if (!appId || !appSecret) {
@@ -337,19 +343,131 @@ export class AuthService {
             throw new UnauthorizedException('Invalid Facebook access token');
         }
         const auth0Sub = `facebook|${data.id}`;
+        const email = data.email || `${data.id}@facebook.oauth.local`;
         let user = await this.usersService.findByAuth0Sub(auth0Sub);
         if (!user) {
-            const email = data.email || `${data.id}@facebook.oauth.local`;
             const profilePicture = data.picture?.data?.url;
             user = await this.usersService.create({
                 email,
                 auth0Sub,
                 name: data.name ?? undefined,
                 profilePicture: profilePicture ?? undefined,
+                status: 'pending',
             });
+            const code = generateSixDigitCode();
+            const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+            await this.usersService.setVerificationCode(email, code, expiresAt);
+            try {
+                await this.mailService.sendVerificationCode(email, code);
+            } catch (err) {
+                console.error('[Auth] Failed to send Facebook sign-up verification email:', err);
+                console.log(`[Auth] Facebook verification code for ${email}: ${code}`);
+            }
+            return { requiresVerification: true, email };
+        }
+        const status = (user as any).status;
+        if (status === 'pending') {
+            const code = generateSixDigitCode();
+            const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+            await this.usersService.setVerificationCode(email, code, expiresAt);
+            try {
+                await this.mailService.sendVerificationCode(email, code);
+            } catch (err) {
+                console.error('[Auth] Failed to send Facebook verification email:', err);
+                console.log(`[Auth] Facebook verification code for ${email}: ${code}`);
+            }
+            return { requiresVerification: true, email };
         }
         const jwt = this.generateToken(user);
         return { user: toPlainUser(user), accessToken: jwt };
+    }
+
+    /**
+     * Verify the 6-digit code for a Facebook sign-up and log the user in.
+     */
+    async verifyFacebookWithCode(
+        accessToken: string,
+        code: string,
+    ): Promise<{ user: Record<string, unknown>; accessToken: string }> {
+        const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+        const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
+        if (!appId || !appSecret) {
+            throw new UnauthorizedException('Facebook login is not configured');
+        }
+        const fields = 'id,email';
+        const url = `https://graph.facebook.com/me?fields=${fields}&access_token=${encodeURIComponent(accessToken)}`;
+        let data: { id: string; email?: string };
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(res.statusText);
+            data = await res.json();
+            if (!data?.id) throw new Error('Invalid response');
+        } catch {
+            throw new UnauthorizedException('Invalid Facebook access token');
+        }
+        const auth0Sub = `facebook|${data.id}`;
+        const user = await this.usersService.findByAuth0SubWithVerification(auth0Sub);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        const email = user.email;
+        const storedCode = (user as any).emailVerificationCode;
+        const expiresAt = (user as any).emailVerificationCodeExpiresAt as Date | undefined;
+        if (!storedCode || !expiresAt) {
+            throw new BadRequestException('No verification code. Please request a new one.');
+        }
+        if (new Date() > expiresAt) {
+            throw new BadRequestException('Verification code expired. Please request a new one.');
+        }
+        if (storedCode !== code.trim()) {
+            throw new BadRequestException('Invalid verification code');
+        }
+        const updated = await this.usersService.activateUserAndClearCode(email);
+        if (!updated) {
+            throw new BadRequestException('User not found');
+        }
+        const accessTokenJwt = this.generateToken(updated);
+        return { user: toPlainUser(updated), accessToken: accessTokenJwt };
+    }
+
+    /**
+     * Resend verification code for pending Facebook sign-up.
+     */
+    async resendFacebookCode(accessToken: string): Promise<{ message: string }> {
+        const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+        const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
+        if (!appId || !appSecret) {
+            throw new UnauthorizedException('Facebook login is not configured');
+        }
+        const url = `https://graph.facebook.com/me?fields=id&access_token=${encodeURIComponent(accessToken)}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(res.statusText);
+            const data = await res.json();
+            if (!data?.id) throw new Error('Invalid response');
+            const auth0Sub = `facebook|${data.id}`;
+            const user = await this.usersService.findByAuth0Sub(auth0Sub);
+            if (!user) {
+                throw new BadRequestException('User not found');
+            }
+            if ((user as any).status === 'active') {
+                return { message: 'Email already verified' };
+            }
+            const email = user.email;
+            const code = generateSixDigitCode();
+            const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+            await this.usersService.setVerificationCode(email, code, expiresAt);
+            try {
+                await this.mailService.sendVerificationCode(email, code);
+            } catch (err) {
+                console.error('[Auth] Failed to resend Facebook verification email:', err);
+                console.log(`[Auth] Facebook verification code for ${email}: ${code}`);
+            }
+            return { message: 'Verification code sent' };
+        } catch (e) {
+            if (e instanceof BadRequestException) throw e;
+            throw new UnauthorizedException('Invalid Facebook access token');
+        }
     }
 
     /**
@@ -391,5 +509,73 @@ export class AuthService {
         }
         await this.usersService.deleteById(userId);
         return { message: 'Account deleted successfully' };
+    }
+
+    /**
+     * Send a 6-digit code to the user's email for password reset. Only for email/password accounts.
+     */
+    async requestPasswordReset(email: string): Promise<{ message: string }> {
+        const user = await this.usersService.findByEmail(email.trim());
+        if (!user) {
+            throw new BadRequestException('No account found with this email.');
+        }
+        if (!(user as any).password) {
+            throw new BadRequestException('This account uses social login. There is no password to reset.');
+        }
+        const code = generateSixDigitCode();
+        const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
+        await this.usersService.setResetPasswordCode(email.trim(), code, expiresAt);
+        try {
+            await this.mailService.sendPasswordResetCode(email.trim(), code);
+        } catch (err) {
+            console.error('[Auth] Failed to send password reset email:', err);
+            console.log(`[Auth] Password reset code for ${email}: ${code}`);
+        }
+        return { message: 'If an account exists, a code has been sent to your email.' };
+    }
+
+    /**
+     * Reset password using the 6-digit code sent by email.
+     */
+    async resetPasswordWithCode(
+        email: string,
+        code: string,
+        newPassword: string,
+    ): Promise<{ message: string }> {
+        const hashedPassword = await this.hashPassword(newPassword);
+        const ok = await this.usersService.verifyResetCodeAndSetPassword(
+            email.trim(),
+            code.trim(),
+            hashedPassword,
+        );
+        if (!ok) {
+            throw new BadRequestException('Invalid or expired code. Please request a new one.');
+        }
+        return { message: 'Password updated. You can now sign in with your new password.' };
+    }
+
+    /**
+     * Change password for the authenticated user (current password required).
+     */
+    async changePassword(
+        user: User | UserDocument,
+        currentPassword: string,
+        newPassword: string,
+    ): Promise<{ message: string }> {
+        const userId = typeof (user as any).id === 'string' ? (user as any).id : (user as any)._id?.toString();
+        if (!userId) {
+            throw new BadRequestException('User not found');
+        }
+        const fullUser = await this.usersService.findByEmail((user as any).email);
+        if (!fullUser || !(fullUser as any).password) {
+            throw new BadRequestException('This account has no password (e.g. social login).');
+        }
+        const valid = await this.comparePasswords(currentPassword, (fullUser as any).password);
+        if (!valid) {
+            throw new UnauthorizedException('Current password is incorrect.');
+        }
+        const hashedPassword = await this.hashPassword(newPassword);
+        await this.usersService.updatePassword(userId, hashedPassword);
+        return { message: 'Password updated successfully.' };
     }
 }

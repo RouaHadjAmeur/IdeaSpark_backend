@@ -132,4 +132,64 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
   }
+
+  async setResetPasswordCode(
+    email: string,
+    code: string,
+    expiresAt: Date,
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { email },
+        { $set: { resetPasswordCode: code, resetPasswordCodeExpiresAt: expiresAt } },
+        { new: true },
+      )
+      .select('+resetPasswordCode +resetPasswordCodeExpiresAt')
+      .exec();
+  }
+
+  async findByEmailWithResetCode(email: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOne({ email })
+      .select('+password +resetPasswordCode +resetPasswordCodeExpiresAt')
+      .exec();
+  }
+
+  async verifyResetCodeAndSetPassword(
+    email: string,
+    code: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
+    const user = await this.findByEmailWithResetCode(email);
+    if (!user) return false;
+    const doc = user as any;
+    const stored = doc.resetPasswordCode;
+    const expiresAt = doc.resetPasswordCodeExpiresAt as Date | undefined;
+    if (!stored || !expiresAt || new Date() > expiresAt) return false;
+    if (stored !== code) return false;
+    await this.userModel
+      .findOneAndUpdate(
+        { email },
+        {
+          $set: { password: hashedPassword },
+          $unset: { resetPasswordCode: 1, resetPasswordCodeExpiresAt: 1 },
+        },
+      )
+      .exec();
+    return true;
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<UserDocument> {
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { password: hashedPassword } },
+        { new: true },
+      )
+      .exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
 }

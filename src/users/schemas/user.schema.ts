@@ -54,6 +54,13 @@ export class User {
     @Prop({ select: false })
     deleteAccountCodeExpiresAt?: Date;
 
+    /** 6-digit code for forgot-password flow. */
+    @Prop({ select: false })
+    resetPasswordCode?: string;
+
+    @Prop({ select: false })
+    resetPasswordCodeExpiresAt?: Date;
+
     @ApiProperty({ description: 'Account creation timestamp' })
     createdAt?: Date;
 

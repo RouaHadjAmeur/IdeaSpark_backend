@@ -9,7 +9,11 @@ import { ResendCodeDto } from './dto/resend-code.dto';
 import { GoogleTokenDto } from './dto/google-token.dto';
 import { FacebookTokenDto } from './dto/facebook-token.dto';
 import { ConfirmDeleteAccountDto } from './dto/confirm-delete-account.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { GoogleVerifyDto } from './dto/google-verify.dto';
+import { FacebookVerifyDto } from './dto/facebook-verify.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 import { FacebookOAuthGuard } from './guards/facebook-oauth.guard';
@@ -159,6 +163,32 @@ export class AuthController {
         return this.authService.login(loginDto);
     }
 
+    @Post('forgot-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Request password reset code',
+        description: 'Sends a 6-digit code to the user\'s email. Only works for email/password accounts. Use reset-password with the code to set a new password.',
+    })
+    @ApiBody({ type: ForgotPasswordDto })
+    @ApiResponse({ status: 200, description: 'If an account exists with a password, a code has been sent.' })
+    @ApiResponse({ status: 400, description: 'No account or social-only account.' })
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.requestPasswordReset(dto.email);
+    }
+
+    @Post('reset-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Reset password with code',
+        description: 'Submit the 6-digit code received by email and your new password.',
+    })
+    @ApiBody({ type: ResetPasswordDto })
+    @ApiResponse({ status: 200, description: 'Password updated. Sign in with the new password.' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPasswordWithCode(dto.email, dto.code, dto.newPassword);
+    }
+
     @Post('verify-email')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
@@ -232,14 +262,45 @@ export class AuthController {
     @Post('facebook')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
-        summary: 'Login with Facebook (mobile)',
-        description: 'Exchange Facebook access token from the mobile app for a JWT. Use the token from flutter_facebook_auth.',
+        summary: 'Login / Sign up with Facebook (mobile)',
+        description: 'Exchange Facebook access token for a JWT. If the user is new or not yet verified, returns requiresVerification + email and sends a 6-digit code. Use facebook/verify with that code to complete sign-in.',
     })
     @ApiBody({ type: FacebookTokenDto })
-    @ApiResponse({ status: 200, description: 'Returns user and accessToken (JWT).' })
+    @ApiResponse({
+        status: 200,
+        description: 'Either { user, accessToken } or { requiresVerification: true, email }.',
+    })
     @ApiResponse({ status: 401, description: 'Invalid Facebook access token.' })
     async loginFacebook(@Body() body: FacebookTokenDto) {
         return this.authService.loginWithFacebookAccessToken(body.accessToken);
+    }
+
+    @Post('facebook/verify')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Verify Facebook sign-up with code',
+        description: 'Submit the 6-digit code sent by email to complete Facebook sign-up. Returns user and JWT.',
+    })
+    @ApiBody({ type: FacebookVerifyDto })
+    @ApiResponse({ status: 200, description: 'Returns user and accessToken.' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired code.' })
+    @ApiResponse({ status: 401, description: 'Invalid Facebook access token.' })
+    async verifyFacebook(@Body() body: FacebookVerifyDto) {
+        return this.authService.verifyFacebookWithCode(body.accessToken, body.code);
+    }
+
+    @Post('facebook/resend-code')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Resend Facebook verification code',
+        description: 'Send a new 6-digit code to the user email for pending Facebook sign-up.',
+    })
+    @ApiBody({ type: FacebookTokenDto })
+    @ApiResponse({ status: 200, description: 'Code sent.' })
+    @ApiResponse({ status: 400, description: 'User not found or already verified.' })
+    @ApiResponse({ status: 401, description: 'Invalid Facebook access token.' })
+    async resendFacebookCode(@Body() body: FacebookTokenDto) {
+        return this.authService.resendFacebookCode(body.accessToken);
     }
 
     @Get('profile')
@@ -277,6 +338,25 @@ export class AuthController {
     })
     getProfile(@CurrentUser() user: User) {
         return user;
+    }
+
+    @Post('change-password')
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({
+        summary: 'Change password',
+        description: 'Updates the authenticated user\'s password. Requires current password. Only for email/password accounts.',
+    })
+    @ApiBody({ type: ChangePasswordDto })
+    @ApiResponse({ status: 200, description: 'Password updated successfully.' })
+    @ApiResponse({ status: 400, description: 'Account has no password (social login).' })
+    @ApiResponse({ status: 401, description: 'Current password incorrect or unauthorized.' })
+    async changePassword(
+        @CurrentUser() user: User,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(user, dto.currentPassword, dto.newPassword);
     }
 
     @Post('delete-account/send-code')
