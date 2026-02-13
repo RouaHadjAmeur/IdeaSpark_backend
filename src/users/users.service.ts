@@ -67,6 +67,10 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
+  async findAll(): Promise<UserDocument[]> {
+    return this.userModel.find().exec();
+  }
+
   async findByAuth0Sub(auth0Sub: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ auth0Sub }).exec();
   }

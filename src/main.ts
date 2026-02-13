@@ -28,32 +28,47 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Mobile App Backend API')
+    .setTitle('IdeaSpark API')
     .setDescription(
       `
-# Mobile App Backend with Authentication
+# IdeaSpark - AI-Powered Video Content Generator
 
-This API provides comprehensive authentication functionality for mobile applications with:
+This API provides comprehensive functionality for video content generation with AI.
+
+## 🎥 Features
+- **AI-Powered Video Script Generation** using Gemini 1.5 Flash
+- **Multimodal Support** (Vision analysis of product images)
+- **AI-Suggested Locations** and location-specific hooks
+- **Personalized Content** based on user persona and preferences
+- **Multi-language Support** (French, English, Arabic)
+- **Multi-platform Optimization** (TikTok, Instagram, YouTube)
+- **User Authentication** with JWT and social login (Google, Facebook)
+- **Persona Management** for tailored content generation
 
 ## 🔐 Authentication Features
-- **Email/Password Registration & Login** with bcrypt password hashing
-- **JWT Token-based Authentication** for secure API access
-- **Auth0 Integration** for OAuth and social login (when configured)
-- **Protected Routes** requiring valid JWT tokens
+- Email/Password Registration & Login
+- Google OAuth Integration
+- Facebook OAuth Integration
+- JWT Token-based Authentication
+- Email Verification
+- Password Reset
+- Account Management
 
 ## 🗄️ Database
-- **PostgreSQL** database with TypeORM
-- Automatic schema synchronization (development mode)
-- Secure password storage with bcrypt hashing
+- **MongoDB** with Mongoose ODM
+- User profiles and authentication
+- Persona data storage
+- Generated video ideas archive
 
-## 📱 Usage
-1. **Register** a new account using \`POST /auth/register\`
-2. **Login** to get your JWT access token using \`POST /auth/login\`
-3. **Authorize**: Click the "Authorize" button and enter your token as \`Bearer YOUR_TOKEN\`
-4. **Access Protected Routes** like \`GET /auth/profile\`
+## 📱 Getting Started
+1. **Register** using \`POST /auth/register\`
+2. **Verify Email** using \`POST /auth/verify-email\`
+3. **Login** to get JWT token using \`POST /auth/login\`
+4. **Complete Persona Onboarding** using \`POST /persona\`
+5. **Generate Video Ideas** using \`POST /video-generator/generate\`
 
 ## 🔑 Authorization
-Use the "Authorize" button (🔓) to add your JWT token for testing protected endpoints.
+Click the "Authorize" button (🔓) and enter your JWT token to test protected endpoints.
       `.trim(),
     )
     .setVersion('1.0')
@@ -68,7 +83,10 @@ Use the "Authorize" button (🔓) to add your JWT token for testing protected en
       },
       'bearer',
     )
-    .addTag('Authentication', 'User registration, login, and profile management')
+    .addTag('Authentication', '🔐 User registration, login, and profile management')
+    .addTag('Users', '👤 User profile management')
+    .addTag('Persona', '🎭 User persona and onboarding')
+    .addTag('Video Generator', '🎥 AI-powered video content generation')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -80,6 +98,11 @@ Use the "Authorize" button (🔓) to add your JWT token for testing protected en
       showRequestDuration: true,
     },
     customSiteTitle: 'Mobile App API Documentation',
+  });
+
+  // Serve static files from uploads directory
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads',
   });
 
   const port = process.env.PORT ?? 3000;

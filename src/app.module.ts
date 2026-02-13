@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
+import { VideoGeneratorModule } from './video-generator/video-generator.module';
+import { PersonaModule } from './persona/persona.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { MailModule } from './mail/mail.module';
     MailModule,
     AuthModule,
     UsersModule,
+    VideoGeneratorModule,
+    PersonaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
