@@ -8,6 +8,8 @@ import { UsersModule } from './users/users.module';
 import { MailModule } from './mail/mail.module';
 import { VideoGeneratorModule } from './video-generator/video-generator.module';
 import { PersonaModule } from './persona/persona.module';
+import { SloganModule } from './slogan-generator/slogan-generator.module';
+
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { PersonaModule } from './persona/persona.module';
     UsersModule,
     VideoGeneratorModule,
     PersonaModule,
+    SloganModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],
