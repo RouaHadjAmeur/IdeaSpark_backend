@@ -9,7 +9,9 @@ import { MailModule } from './mail/mail.module';
 import { VideoGeneratorModule } from './video-generator/video-generator.module';
 import { PersonaModule } from './persona/persona.module';
 import { SloganModule } from './slogan-generator/slogan-generator.module';
-
+import { BrandsModule } from './brands/brands.module';
+import { PlansModule } from './plans/plans.module';
+import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 
 @Module({
   imports: [
@@ -17,6 +19,7 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -24,13 +27,16 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
         uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/ideaspark',
       }),
     }),
+
     MailModule,
     AuthModule,
     UsersModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,
-
+    BrandsModule,
+    PlansModule,
+    ContentBlocksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

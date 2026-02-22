@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GenerateSlogansDto } from './dto/generate-slogans.dto';
 import { GenerateSlogansResponseDto, SloganDto } from './dto/slogan-response.dto';
 import { Slogan, SloganDocument } from './schemas/slogan.schema';
+import { GenerateCampaignSloganDto, CampaignCopyResultDto } from './dto/generate-campaign-slogan.dto';
 
 @Injectable()
 export class SloganAiService {
@@ -318,5 +319,73 @@ Genera 10 eslóganes VARIADOS y CREATIVOS.`,
     if (result.deletedCount === 0) {
       throw new NotFoundException('Slogan not found or not owned by user');
     }
+  }
+
+  // ─── Campaign slogan generator ─────────────────────────────────────────
+
+  async generateCampaignSlogan(dto: GenerateCampaignSloganDto): Promise<CampaignCopyResultDto> {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY') || process.env.GEMINI_API_KEY || '';
+    if (!apiKey || apiKey === 'your-gemini-api-key-here') {
+      throw new BadRequestException('Gemini API key not configured.');
+    }
+
+    const langMap: Record<string, string> = {
+      en: 'English', fr: 'French', ar: 'Arabic', es: 'Spanish', de: 'German',
+    };
+    const langName = langMap[dto.language] || dto.language;
+    const product = dto.productName ? ` for the product "${dto.productName}"` : '';
+    const platform = dto.platform ? ` optimized for ${dto.platform}` : '';
+
+    const prompt = `You are an expert advertising copywriter specializing in campaign launch copy.
+
+Create campaign copy in ${langName} for a ${dto.brandTone} brand${product}.
+${dto.brandPositioning ? `Brand positioning: ${dto.brandPositioning}` : ''}
+Campaign objective: ${dto.campaignObjective}
+Key benefits: ${dto.keyBenefits.join(', ')}
+${platform}
+
+Generate campaign-quality copy with variety and impact. Every option must be DIFFERENT.
+
+Respond ONLY with a valid JSON object:
+{
+  "slogans": [
+    "Campaign slogan 1 (punchy, memorable, max 10 words)",
+    "Campaign slogan 2",
+    "Campaign slogan 3",
+    "Campaign slogan 4",
+    "Campaign slogan 5"
+  ],
+  "taglines": [
+    "Short tagline 1 (max 6 words)",
+    "Short tagline 2",
+    "Short tagline 3"
+  ],
+  "headlines": [
+    "Launch headline 1 — full bold statement for ads/landing pages",
+    "Launch headline 2",
+    "Launch headline 3"
+  ]
+}`;
+
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.5-flash';
+    const result = await this.genAI.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: { temperature: 0.95, maxOutputTokens: 3000, responseMimeType: 'application/json' },
+    });
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(result.text || '{}');
+    } catch {
+      throw new BadRequestException('AI returned invalid JSON for campaign copy.');
+    }
+
+    return {
+      slogans: Array.isArray(parsed.slogans) ? parsed.slogans.slice(0, 5) : [],
+      taglines: Array.isArray(parsed.taglines) ? parsed.taglines.slice(0, 3) : [],
+      headlines: Array.isArray(parsed.headlines) ? parsed.headlines.slice(0, 3) : [],
+      generatedAt: new Date(),
+    };
   }
 }
