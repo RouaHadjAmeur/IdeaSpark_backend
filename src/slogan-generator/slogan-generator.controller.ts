@@ -4,6 +4,7 @@ import { SloganAiService } from './slogan-generator.service';
 import { GenerateSlogansDto } from './dto/generate-slogans.dto';
 import { GenerateSlogansResponseDto, SloganDto } from './dto/slogan-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GenerateCampaignSloganDto } from './dto/generate-campaign-slogan.dto';
 
 @ApiTags('AI Features')
 @Controller('SloganAi')
@@ -154,5 +155,33 @@ La langue des slogans peut être spécifiée (français par défaut).`,
   @ApiOperation({ summary: 'Supprimer un slogan de l\'historique' })
   async deleteSlogan(@Param('id') id: string, @Req() req: any) {
     return this.SloganAiService.deleteSlogan(id, req.user.id);
+  }
+
+  // ─── POST /SloganAi/campaign ────────────────────────────
+
+  @Post('campaign')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Generate campaign slogans, taglines, and launch headlines',
+    description: `Generates:
+- 5 campaign slogan options
+- 3 short taglines
+- 3 launch headline variations
+
+Save the chosen one to a plan via PATCH /plans/:id/campaign-copy.`,
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        slogans: ['Hydrate Smarter. Live Better.', 'Your Water. Your Rules.', 'Track it. Drink it. Win it.', 'Engineered for Every Drop.', 'Because Every Sip Counts.'],
+        taglines: ['The Smart Hydration Brand', 'Drink With Purpose', 'Sip Smarter'],
+        headlines: ['Introducing the Water Bottle That Thinks for You', 'Meet the Last Water Bottle You\'ll Ever Need', 'Athletes Track Everything. Now Track Your Water.'],
+        generatedAt: '2026-02-20T01:10:00.000Z',
+      },
+    },
+  })
+  async generateCampaignSlogan(@Body() dto: GenerateCampaignSloganDto) {
+    return this.SloganAiService.generateCampaignSlogan(dto);
   }
 }

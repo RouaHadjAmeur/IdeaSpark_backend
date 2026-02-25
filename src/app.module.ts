@@ -12,7 +12,9 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
 import { N8nModule } from './n8n/n8n.module';
 import { TrendsModule } from './trends/trends.module';
 import { SocialPostsModule } from './social-posts/social-posts.module';
-
+import { BrandsModule } from './brands/brands.module';
+import { PlansModule } from './plans/plans.module';
+import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { SocialPostsModule } from './social-posts/social-posts.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -36,6 +39,9 @@ import { SocialPostsModule } from './social-posts/social-posts.module';
     PersonaModule,
     SloganModule,
     SocialPostsModule,
+    BrandsModule,
+    PlansModule,
+    ContentBlocksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
