@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GenerateSlogansDto } from './dto/generate-slogans.dto';
 import { GenerateSlogansResponseDto, SloganDto } from './dto/slogan-response.dto';
 import { Slogan, SloganDocument } from './schemas/slogan.schema';
+import { N8nWebhookService, N8nEvent } from '../n8n/n8n-webhook.service';
 
 @Injectable()
 export class SloganAiService {
@@ -14,6 +15,7 @@ export class SloganAiService {
   constructor(
     private configService: ConfigService,
     @InjectModel(Slogan.name) private sloganModel: Model<SloganDocument>,
+    private readonly n8nWebhook: N8nWebhookService,
   ) {
     const apiKeyFromConfig = this.configService.get<string>('GEMINI_API_KEY');
     const apiKey = apiKeyFromConfig || process.env.GEMINI_API_KEY || '';
@@ -289,11 +291,20 @@ Genera 10 eslóganes VARIADOS y CREATIVOS.`,
   }
 
   async saveSlogan(dto: SloganDto, userId: string): Promise<Slogan> {
-    const newSlogan = new this.sloganModel({
-      ...dto,
+    const newSlogan = new this.sloganModel({ ...dto, userId });
+    const saved = await newSlogan.save();
+
+    // Notify n8n: slogan saved
+    this.n8nWebhook.emit(N8nEvent.SLOGAN_SAVED, {
       userId,
+      sloganId: (saved as any)._id?.toString(),
+      slogan: dto.slogan,
+      brandName: (dto as any).brandName,
+      category: dto.category,
+      memorabilityScore: dto.memorabilityScore,
     });
-    return newSlogan.save();
+
+    return saved;
   }
 
   async getHistory(userId: string): Promise<Slogan[]> {
@@ -310,7 +321,21 @@ Genera 10 eslóganes VARIADOS y CREATIVOS.`,
       throw new NotFoundException('Slogan focus for this user not found');
     }
     slogan.isFavorite = !slogan.isFavorite;
-    return slogan.save();
+    const updated = await slogan.save();
+
+    // Notify n8n when user adds to favourites (not when removing)
+    if (updated.isFavorite) {
+      this.n8nWebhook.emit(N8nEvent.SLOGAN_SAVED, {
+        userId,
+        sloganId: (updated as any)._id?.toString(),
+        slogan: updated.slogan,
+        category: updated.category,
+        memorabilityScore: updated.memorabilityScore,
+        markedFavorite: true,
+      });
+    }
+
+    return updated;
   }
 
   async deleteSlogan(id: string, userId: string): Promise<void> {

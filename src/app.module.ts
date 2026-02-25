@@ -9,6 +9,9 @@ import { MailModule } from './mail/mail.module';
 import { VideoGeneratorModule } from './video-generator/video-generator.module';
 import { PersonaModule } from './persona/persona.module';
 import { SloganModule } from './slogan-generator/slogan-generator.module';
+import { N8nModule } from './n8n/n8n.module';
+import { TrendsModule } from './trends/trends.module';
+import { SocialPostsModule } from './social-posts/social-posts.module';
 
 
 @Module({
@@ -24,13 +27,15 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
         uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/ideaspark',
       }),
     }),
+    N8nModule,
+    TrendsModule,
     MailModule,
     AuthModule,
     UsersModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,
-
+    SocialPostsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
