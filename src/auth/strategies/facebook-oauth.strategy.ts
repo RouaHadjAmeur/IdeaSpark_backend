@@ -10,9 +10,9 @@ export class FacebookOAuthStrategy extends PassportStrategy(Strategy, 'facebook-
         private configService: ConfigService,
         private usersService: UsersService,
     ) {
-        const domain = configService.get('AUTH0_DOMAIN');
-        const clientID = configService.get('AUTH0_CLIENT_ID');
-        const clientSecret = configService.get('AUTH0_CLIENT_SECRET');
+        const domain = configService.get('AUTH0_DOMAIN') || 'placeholder.auth0.com';
+        const clientID = configService.get('AUTH0_CLIENT_ID') || 'placeholder-client-id';
+        const clientSecret = configService.get('AUTH0_CLIENT_SECRET') || 'placeholder-secret';
 
         super({
             authorizationURL: `https://${domain}/authorize?connection=facebook`,
@@ -22,6 +22,10 @@ export class FacebookOAuthStrategy extends PassportStrategy(Strategy, 'facebook-
             callbackURL: 'http://localhost:3000/auth/callback',
             scope: ['openid', 'profile', 'email'],
         });
+
+        if (!configService.get('AUTH0_CLIENT_ID') || configService.get('AUTH0_CLIENT_ID') === 'placeholder-client-id') {
+            console.warn('[FacebookOAuthStrategy] AUTH0_CLIENT_ID is not configured. Facebook OAuth will not work.');
+        }
     }
 
     async validate(

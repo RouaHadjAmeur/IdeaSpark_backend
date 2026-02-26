@@ -12,6 +12,7 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
 import { BrandsModule } from './brands/brands.module';
 import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
+import { ProductIdeaModule } from './product-idea/product-idea.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ContentBlocksModule } from './content-blocks/content-blocks.module';
     BrandsModule,
     PlansModule,
     ContentBlocksModule,
+    ProductIdeaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

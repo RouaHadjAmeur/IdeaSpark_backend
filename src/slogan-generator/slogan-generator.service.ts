@@ -22,8 +22,11 @@ export class SloganAiService {
     console.log(`[AI Service] GEMINI_API_KEY present: ${hasKey ? 'yes' : 'no'}`);
     if (!hasKey) {
       console.warn('[AI Service] Gemini API key not configured. AI features will not work.');
+      // Don't initialize GoogleGenAI if no key
+      this.genAI = null as any;
+    } else {
+      this.genAI = new GoogleGenAI({ apiKey });
     }
-    this.genAI = new GoogleGenAI({ apiKey });
   }
 
   async generateSlogans(dto: GenerateSlogansDto): Promise<GenerateSlogansResponseDto> {
