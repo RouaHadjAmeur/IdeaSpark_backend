@@ -15,6 +15,7 @@ import { SocialPostsModule } from './social-posts/social-posts.module';
 import { BrandsModule } from './brands/brands.module';
 import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
+import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ContentBlocksModule } from './content-blocks/content-blocks.module';
     BrandsModule,
     PlansModule,
     ContentBlocksModule,
+    IAScratchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

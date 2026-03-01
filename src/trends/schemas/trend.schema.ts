@@ -17,8 +17,22 @@ export class Trend {
     @Prop()
     source: string;
 
-    @Prop({ enum: ['fr', 'en', 'ar'], default: 'fr' })
+    @Prop({ default: 'fr' })
     language: string;
+
+    /**
+     * Geographic target: any country code or label.
+     * e.g. 'TN' (Tunisia), 'GLOBAL', 'MA' (Morocco), 'DZ' (Algeria), 'FR', 'US'…
+     */
+    @Prop({ default: 'GLOBAL' })
+    geo: string;
+
+    /**
+     * Content niche / category.
+     * e.g. 'tech', 'business', 'politics', 'sports', 'entertainment', 'health', 'general'
+     */
+    @Prop({ default: 'general' })
+    niche: string;
 
     @Prop()
     trendDate: Date;

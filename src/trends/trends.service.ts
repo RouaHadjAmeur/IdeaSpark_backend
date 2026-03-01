@@ -9,32 +9,41 @@ export class TrendsService {
 
     /**
      * Called by n8n via POST /trends/update to push freshly scraped trends.
-     * Clears old trends for the same date+language and inserts fresh ones.
+     * Clears old trends for the same date+geo and inserts fresh ones.
      */
     async upsertTrends(trends: Partial<Trend>[]): Promise<void> {
         if (!trends?.length) return;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Group by language to clear old data efficiently
-        const languages = [...new Set(trends.map((t) => t.language || 'fr'))];
-        for (const lang of languages) {
+        // Group by geo to clear old data efficiently
+        const geos = [...new Set(trends.map((t) => (t as any).geo || 'GLOBAL'))];
+        for (const geo of geos) {
             await this.trendModel.deleteMany({
-                language: lang,
+                geo,
                 trendDate: { $gte: today },
             });
         }
 
         await this.trendModel.insertMany(
-            trends.map((t) => ({ ...t, trendDate: t.trendDate || new Date() })),
+            trends.map((t) => ({
+                ...t,
+                geo: (t as any).geo || 'GLOBAL',
+                niche: (t as any).niche || 'general',
+                trendDate: t.trendDate || new Date(),
+            })),
         );
     }
 
     /**
      * Called by Flutter to display trends on the Trends screen.
+     * Filters by geo and optionally by niche.
      */
-    async getLatestTrends(language?: string): Promise<Trend[]> {
-        const filter = language ? { language } : {};
+    async getLatestTrends(geo?: string, language?: string, niche?: string): Promise<Trend[]> {
+        const filter: any = {};
+        if (geo) filter.geo = geo.toUpperCase();
+        if (language) filter.language = language;
+        if (niche) filter.niche = niche.toLowerCase();
         return this.trendModel.find(filter).sort({ trendDate: -1, createdAt: -1 }).limit(20).exec();
     }
 }

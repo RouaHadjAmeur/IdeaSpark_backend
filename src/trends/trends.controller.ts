@@ -45,7 +45,11 @@ export class TrendsController {
      * Public endpoint (authenticated users only via JWT in production).
      */
     @Get()
-    async getTrends(@Query('language') language?: string): Promise<Trend[]> {
-        return this.trendsService.getLatestTrends(language);
+    async getTrends(
+        @Query('geo') geo?: string,
+        @Query('language') language?: string,
+        @Query('niche') niche?: string,
+    ): Promise<Trend[]> {
+        return this.trendsService.getLatestTrends(geo, language, niche);
     }
 }
