@@ -80,18 +80,18 @@ Current time: ${ctx.currentDateTime}
 
 --- MISSED POSTS (scheduled time passed, not marked published) ---
 ${missed.length === 0 ? 'None' : missed.map(e =>
-    `• "${e.title}" [${e.platform}${e.format ? '/' + e.format : ''}] plan="${e.planName}" brand="${e.brandName}" was due ${e.scheduledDate} ${e.scheduledTime ?? ''}`
-).join('\n')}
+            `• "${e.title}" [${e.platform}${e.format ? '/' + e.format : ''}] plan="${e.planName}" brand="${e.brandName}" was due ${e.scheduledDate} ${e.scheduledTime ?? ''}`
+        ).join('\n')}
 
 --- UPCOMING (today + tomorrow, not yet published) ---
 ${upcoming.length === 0 ? 'None' : upcoming.map(e =>
-    `• "${e.title}" [${e.platform}${e.format ? '/' + e.format : ''}] plan="${e.planName}" brand="${e.brandName}" at ${e.scheduledDate} ${e.scheduledTime ?? ''}`
-).join('\n')}
+            `• "${e.title}" [${e.platform}${e.format ? '/' + e.format : ''}] plan="${e.planName}" brand="${e.brandName}" at ${e.scheduledDate} ${e.scheduledTime ?? ''}`
+        ).join('\n')}
 
 --- ACTIVE PLANS ---
 ${ctx.plans.filter(p => p.status === 'active').map(p =>
-    `• "${p.name}" brand="${p.brandName}" promoRatio=${p.promoRatio}% ends=${p.endDate}`
-).join('\n') || 'None'}
+            `• "${p.name}" brand="${p.brandName}" promoRatio=${p.promoRatio}% ends=${p.endDate}`
+        ).join('\n') || 'None'}
 
 --- BRANDS WITHOUT ACTIVE PLAN ---
 ${ctx.brands.filter(b => !b.hasActivePlan).map(b => `• ${b.name}`).join('\n') || 'None'}

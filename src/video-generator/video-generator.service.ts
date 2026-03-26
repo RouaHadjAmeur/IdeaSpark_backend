@@ -5,12 +5,14 @@ import { VideoIdea, VideoIdeaDocument, VideoScene } from './schemas/video-idea.s
 import { CreateVideoRequestDto, VideoTone, Platform } from './dto/create-video-request.dto';
 import { ContentLibraries } from './content-libraries';
 import { OpenAIService } from './openai.service';
+import { N8nWebhookService, N8nEvent } from '../n8n/n8n-webhook.service';
 
 @Injectable()
 export class VideoGeneratorService {
     constructor(
         @InjectModel(VideoIdea.name) private videoIdeaModel: Model<VideoIdeaDocument>,
         private openaiService: OpenAIService,
+        private readonly n8nWebhook: N8nWebhookService,
     ) { }
 
     /**
@@ -203,7 +205,7 @@ export class VideoGeneratorService {
         return idea.save();
     }
 
-    async approveVersion(ideaId: string, versionIndex: number): Promise<VideoIdea> {
+    async approveVersion(ideaId: string, versionIndex: number, userId?: string): Promise<VideoIdea> {
         if (!Types.ObjectId.isValid(ideaId)) {
             throw new BadRequestException('ideaId must be a valid MongoDB ObjectId');
         }
@@ -213,7 +215,21 @@ export class VideoGeneratorService {
         idea.currentVersionIndex = versionIndex;
         idea.isApproved = true;
         idea.isFavorite = true;
-        return idea.save();
+        const saved = await idea.save();
+
+        // Notify n8n: video idea approved for publishing
+        const version = idea.versions[versionIndex];
+        this.n8nWebhook.emit(N8nEvent.VIDEO_APPROVED, {
+            userId: userId || (idea as any).userId,
+            ideaId,
+            title: version?.title,
+            hook: version?.hook,
+            caption: version?.caption,
+            hashtags: version?.hashtags,
+            platform: (idea as any).platform,
+        });
+
+        return saved;
     }
 
     async getHistory(userId?: string): Promise<VideoIdea[]> {

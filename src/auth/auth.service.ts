@@ -8,6 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { N8nWebhookService, N8nEvent } from '../n8n/n8n-webhook.service';
 
 /** Convert Mongoose document to plain object so ClassSerializerInterceptor doesn't break. */
 function toPlainUser(user: User | UserDocument): Record<string, unknown> {
@@ -30,6 +31,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
         private readonly mailService: MailService,
+        private readonly n8nWebhook: N8nWebhookService,
     ) { }
 
     async register(registerDto: RegisterDto): Promise<{ user: Record<string, unknown>; accessToken: string }> {
@@ -56,6 +58,14 @@ export class AuthService {
         }
 
         const accessToken = this.generateToken(user);
+
+        // Notify n8n: new user registered
+        this.n8nWebhook.emit(N8nEvent.USER_REGISTERED, {
+            userId: (user as any)._id?.toString(),
+            email: registerDto.email,
+            name: registerDto.name,
+            source: 'email',
+        });
 
         return {
             user: toPlainUser(user),
@@ -108,6 +118,15 @@ export class AuthService {
             throw new BadRequestException('User not found');
         }
         const accessToken = this.generateToken(updated);
+
+        // Notify n8n: user email verified and fully activated
+        this.n8nWebhook.emit(N8nEvent.USER_ACTIVATED, {
+            userId: (updated as any)._id?.toString(),
+            email: email.trim(),
+            name: (updated as any).name,
+            source: 'email',
+        });
+
         return { user: toPlainUser(updated), accessToken };
     }
 
@@ -271,6 +290,15 @@ export class AuthService {
             throw new BadRequestException('User not found');
         }
         const accessToken = this.generateToken(updated);
+
+        // Notify n8n: Google user activated
+        this.n8nWebhook.emit(N8nEvent.USER_ACTIVATED, {
+            userId: (updated as any)._id?.toString(),
+            email: updated.email,
+            name: (updated as any).name,
+            source: 'google',
+        });
+
         return { user: toPlainUser(updated), accessToken };
     }
 
@@ -427,6 +455,15 @@ export class AuthService {
             throw new BadRequestException('User not found');
         }
         const accessTokenJwt = this.generateToken(updated);
+
+        // Notify n8n: Facebook user activated
+        this.n8nWebhook.emit(N8nEvent.USER_ACTIVATED, {
+            userId: (updated as any)._id?.toString(),
+            email: updated.email,
+            name: (updated as any).name,
+            source: 'facebook',
+        });
+
         return { user: toPlainUser(updated), accessToken: accessTokenJwt };
     }
 
