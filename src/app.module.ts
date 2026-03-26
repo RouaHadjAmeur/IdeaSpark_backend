@@ -13,6 +13,8 @@ import { BrandsModule } from './brands/brands.module';
 import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 
+import { VoiceCommandModule } from './voice-command/voice-command.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -37,6 +39,7 @@ import { ContentBlocksModule } from './content-blocks/content-blocks.module';
     BrandsModule,
     PlansModule,
     ContentBlocksModule,
+    VoiceCommandModule,
   ],
   controllers: [AppController],
   providers: [AppService],
