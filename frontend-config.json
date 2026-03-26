@@ -1,0 +1,38 @@
+{
+  "api": {
+    "baseUrl": "http://localhost:3001",
+    "endpoints": {
+      "auth": {
+        "login": "/auth/login",
+        "register": "/auth/register"
+      },
+      "googleCalendar": {
+        "authUrl": "/google-calendar/auth-url",
+        "callback": "/google-calendar/callback",
+        "syncEntry": "/google-calendar/sync-entry",
+        "syncPlan": "/google-calendar/sync-plan"
+      },
+      "plans": {
+        "list": "/plans",
+        "create": "/plans",
+        "get": "/plans/:id",
+        "addToCalendar": "/plans/:id/add-to-calendar",
+        "calendar": "/plans/:id/calendar"
+      }
+    }
+  },
+  "google": {
+    "clientId": "927555530226-og8d2denl0lm1bi5g2ce71ujdmk8naek.apps.googleusercontent.com",
+    "redirectUri": "http://localhost:3001/google-calendar/callback",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  },
+  "storage": {
+    "keys": {
+      "jwtToken": "jwt_token",
+      "googleAccessToken": "google_access_token",
+      "googleRefreshToken": "google_refresh_token"
+    }
+  }
+}

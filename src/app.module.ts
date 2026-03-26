@@ -12,6 +12,8 @@ import { SloganModule } from './slogan-generator/slogan-generator.module';
 import { BrandsModule } from './brands/brands.module';
 import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
+import { ProductIdeaModule } from './product-idea/product-idea.module';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 
 import { VoiceCommandModule } from './voice-command/voice-command.module';
 
@@ -40,6 +42,8 @@ import { VoiceCommandModule } from './voice-command/voice-command.module';
     PlansModule,
     ContentBlocksModule,
     VoiceCommandModule,
+    ProductIdeaModule,
+    GoogleCalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService],

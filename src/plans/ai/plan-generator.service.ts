@@ -68,10 +68,16 @@ export class PlanGeneratorService {
 
     constructor(private readonly configService: ConfigService) {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-        if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
-        this.genAI = new GoogleGenerativeAI(apiKey);
-        // Reuse the same model configured for slogan generation; default to gemini-2.0-flash
-        this.modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash';
+        if (!apiKey) {
+            this.logger.warn('GEMINI_API_KEY is not configured. Plan generation features will not work.');
+            // Don't initialize GoogleGenerativeAI if no key
+            this.genAI = null as any;
+            this.modelName = 'gemini-2.0-flash';
+        } else {
+            this.genAI = new GoogleGenerativeAI(apiKey);
+            // Reuse the same model configured for slogan generation; default to gemini-2.0-flash
+            this.modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash';
+        }
     }
 
     // ─── Public API ──────────────────────────────────────────

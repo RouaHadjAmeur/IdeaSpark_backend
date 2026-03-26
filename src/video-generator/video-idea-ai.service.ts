@@ -30,12 +30,22 @@ export class VideoIdeaAiService {
 
     constructor(private configService: ConfigService) {
         const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-        if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
-        this.openai = new OpenAI({ apiKey });
+        if (!apiKey) {
+            this.logger.warn('OPENAI_API_KEY is not configured. Video generation features will not work.');
+            // Initialize with empty key to prevent crash
+            this.openai = new OpenAI({ apiKey: 'dummy-key' });
+        } else {
+            this.openai = new OpenAI({ apiKey });
+        }
         this.model = this.configService.get<string>('OPENAI_MODEL') || 'gpt-4o-mini';
     }
 
     async generate(dto: GenerateVideoIdeaDto): Promise<ContentBlockGenerationResult> {
+        const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+        if (!apiKey) {
+            throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file to use video generation features.');
+        }
+        
         const systemPrompt = this.buildSystemPrompt(dto);
         const userPrompt = this.buildUserPrompt(dto);
 

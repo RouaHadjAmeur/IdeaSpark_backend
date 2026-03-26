@@ -110,7 +110,8 @@ Respond ONLY with valid JSON — no markdown, no explanation:
 
         // ── 3. Call Gemini ─────────────────────────────────────────────────────
         try {
-            const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            const modelName = this.config.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash-exp';
+            const model = this.genAI.getGenerativeModel({ model: modelName });
             const result = await model.generateContent(prompt);
             const raw = result.response.text().trim();
 
