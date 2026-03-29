@@ -14,6 +14,7 @@ import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 
 import { VoiceCommandModule } from './voice-command/voice-command.module';
+import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { VoiceCommandModule } from './voice-command/voice-command.module';
     PlansModule,
     ContentBlocksModule,
     VoiceCommandModule,
+    IAFinetuningModule,
   ],
   controllers: [AppController],
   providers: [AppService],
