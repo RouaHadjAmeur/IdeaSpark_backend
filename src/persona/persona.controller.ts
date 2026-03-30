@@ -1,14 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Persona')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('persona')
-// @UseGuards(JwtAuthGuard) // COMMENTED OUT FOR DEVELOPMENT TESTING
-// @ApiBearerAuth()
 export class PersonaController {
     constructor(private readonly personaService: PersonaService) {}
 
@@ -52,9 +53,8 @@ export class PersonaController {
         status: 401,
         description: 'Unauthorized - JWT token required',
     })
-    async createOrUpdate(@Request() req, @Body() createPersonaDto: CreatePersonaDto) {
-        // For testing: use a default test user ID if not authenticated
-        const userId = req.user ? (req.user.userId || req.user._id) : '675b7e8a2e3f4d1234567890';
+    async createOrUpdate(@CurrentUser() user: any, @Body() createPersonaDto: CreatePersonaDto) {
+        const userId = user.id || user._id?.toString();
 
         // Check if persona exists
         const existingPersona = await this.personaService.findByUserId(userId);
@@ -107,9 +107,8 @@ export class PersonaController {
         status: 401,
         description: 'Unauthorized - JWT token required',
     })
-    async getMyPersona(@Request() req) {
-        // For testing: use a default test user ID if not authenticated
-        const userId = req.user ? (req.user.userId || req.user._id) : '675b7e8a2e3f4d1234567890';
+    async getMyPersona(@CurrentUser() user: any) {
+        const userId = user.id || user._id?.toString();
         const persona = await this.personaService.findByUserId(userId);
 
         if (!persona) {
@@ -148,9 +147,8 @@ export class PersonaController {
         status: 401,
         description: 'Unauthorized - JWT token required',
     })
-    async checkStatus(@Request() req) {
-        // For testing: use a default test user ID if not authenticated
-        const userId = req.user ? (req.user.userId || req.user._id) : '675b7e8a2e3f4d1234567890';
+    async checkStatus(@CurrentUser() user: any) {
+        const userId = user.id || user._id?.toString();
         const hasPersona = await this.personaService.hasPersona(userId);
 
         return {
@@ -184,9 +182,8 @@ export class PersonaController {
         status: 404,
         description: 'Persona not found',
     })
-    async update(@Request() req, @Body() updatePersonaDto: UpdatePersonaDto) {
-        // For testing: use a default test user ID if not authenticated
-        const userId = req.user ? (req.user.userId || req.user._id) : '675b7e8a2e3f4d1234567890';
+    async update(@CurrentUser() user: any, @Body() updatePersonaDto: UpdatePersonaDto) {
+        const userId = user.id || user._id?.toString();
         return this.personaService.update(userId, updatePersonaDto);
     }
 
@@ -212,9 +209,8 @@ export class PersonaController {
         status: 404,
         description: 'Persona not found',
     })
-    async delete(@Request() req) {
-        // For testing: use a default test user ID if not authenticated
-        const userId = req.user ? (req.user.userId || req.user._id) : '675b7e8a2e3f4d1234567890';
+    async delete(@CurrentUser() user: any) {
+        const userId = user.id || user._id?.toString();
         await this.personaService.delete(userId);
     }
 }

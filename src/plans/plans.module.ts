@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { PlansController } from './plans.controller';
@@ -9,8 +9,8 @@ import { DashboardAlertsService } from './ai/dashboard-alerts.service';
 import { Plan, PlanSchema } from './schemas/plan.schema';
 import { CalendarEntry, CalendarEntrySchema } from './schemas/calendar-entry.schema';
 
-// BrandsModule already registers + exports Brand model via MongooseModule
 import { BrandsModule } from '../brands/brands.module';
+import { CollaborationModule } from '../collaboration/collaboration.module';
 
 @Module({
     imports: [
@@ -19,9 +19,10 @@ import { BrandsModule } from '../brands/brands.module';
             { name: CalendarEntry.name, schema: CalendarEntrySchema },
         ]),
         BrandsModule, // provides @InjectModel(Brand.name) without re-registering
+        forwardRef(() => CollaborationModule),
     ],
     controllers: [PlansController],
     providers: [PlansService, PlanGeneratorService, DashboardAlertsService],
-    exports: [PlansService],
+    exports: [PlansService, MongooseModule],
 })
 export class PlansModule {}

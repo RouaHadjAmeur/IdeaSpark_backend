@@ -4,6 +4,8 @@ import {
     NotFoundException,
     BadRequestException,
     ForbiddenException,
+    Inject,
+    forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,6 +24,7 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateCampaignCopyDto } from './dto/update-campaign-copy.dto';
 import { PlanGeneratorService, BrandContext } from './ai/plan-generator.service';
 import { CtaType } from './schemas/plan.schema';
+import { CollaborationService } from '../collaboration/collaboration.service';
 
 @Injectable()
 export class PlansService {
@@ -38,6 +41,9 @@ export class PlansService {
         private readonly brandModel: Model<BrandDocument>,
 
         private readonly planGenerator: PlanGeneratorService,
+
+        @Inject(forwardRef(() => CollaborationService))
+        private readonly collaborationService: CollaborationService,
     ) { }
 
     // ─── createPlan ──────────────────────────────────────────────────────────────
@@ -74,17 +80,40 @@ export class PlansService {
     // ─── findAll ─────────────────────────────────────────────────────────────────
 
     async findAll(userId: string, brandId?: string): Promise<PlanDocument[]> {
-        const filter: Record<string, any> = { userId };
+        const collabPlanIds = await this.collaborationService.getCollaboratorPlanIds(userId);
+        
+        const filter: Record<string, any> = {
+            $or: [
+                { userId },
+                { _id: { $in: collabPlanIds } }
+            ]
+        };
         if (brandId) filter.brandId = brandId;
+        
         return this.planModel.find(filter).sort({ createdAt: -1 }).exec();
     }
 
     // ─── findOne ─────────────────────────────────────────────────────────────────
 
-    async findOne(planId: string, userId: string): Promise<PlanDocument> {
-        const plan = await this.planModel.findOne({ _id: planId, userId }).exec();
+    async findOne(planId: string, userId: string, skipCollaboratorCheck = false): Promise<PlanDocument> {
+        let plan = await this.planModel.findOne({ _id: planId, userId }).exec();
+        if (!plan && !skipCollaboratorCheck) {
+            const isCollab = await this.collaborationService.assertAccess(planId, userId).catch(() => false);
+            if (isCollab) {
+                plan = await this.planModel.findOne({ _id: planId }).exec();
+            }
+        }
         if (!plan) throw new NotFoundException(`Plan ${planId} not found`);
         return plan;
+    }
+
+    async findMany(ids: string[]): Promise<PlanDocument[]> {
+        return this.planModel.find({ _id: { $in: ids } }).populate('brandId', 'name').sort({ updatedAt: -1 }).exec();
+    }
+
+    async findOwnedPlanIds(userId: string): Promise<string[]> {
+        const plans = await this.planModel.find({ userId }).select('_id').exec();
+        return plans.map(p => p._id.toString());
     }
 
     // ─── updatePlan ──────────────────────────────────────────────────────────────
@@ -107,8 +136,25 @@ export class PlansService {
         }
 
         const updated = await this.planModel
-            .findOneAndUpdate({ _id: planId, userId }, { $set: update }, { new: true })
+            .findOneAndUpdate({ _id: planId }, { $set: update }, { new: true })
             .exec();
+
+        // Log activity
+        if (updated) {
+            const changes = Object.keys(dto);
+            for (const key of changes) {
+                await this.collaborationService.logActivity(
+                    planId,
+                    userId,
+                    'User', // Fallback, normally fetch from DB or JWT
+                    'update',
+                    key,
+                    (plan as any)[key]?.toString(),
+                    (updated as any)[key]?.toString()
+                );
+            }
+        }
+
         return updated!;
     }
 

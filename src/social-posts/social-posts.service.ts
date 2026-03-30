@@ -35,4 +35,18 @@ export class SocialPostsService {
             { new: true },
         ).exec();
     }
+
+    /**
+     * Fetch published posts from a list of user IDs (for the social feed).
+     */
+    async findFeedPosts(userIds: string[]): Promise<SocialPostDocument[]> {
+        return this.postModel.find({
+            userId: { $in: userIds },
+            status: 'published'
+        })
+        .sort({ publishedAt: -1 })
+        .limit(50)
+        .populate('userId', 'name username profile_img role')
+        .exec();
+    }
 }

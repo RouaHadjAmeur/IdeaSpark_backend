@@ -41,6 +41,22 @@ export class User {
     @Prop()
     auth0Sub?: string;
 
+    @ApiProperty({ description: 'User username identifier', required: false })
+    @Prop({ unique: true, sparse: true })
+    username?: string;
+
+    @ApiProperty({ description: 'User skills', required: false })
+    @Prop({ type: [String], default: [] })
+    skills?: string[];
+
+    @ApiProperty({ description: 'User functional role', required: false })
+    @Prop()
+    role?: string;
+
+    @ApiProperty({ description: 'User professional interests', required: false })
+    @Prop({ type: [String], default: [] })
+    interests?: string[];
+
     /** Account status: pending until email is verified, then active. */
     @Prop({ default: 'active' })
     status?: 'pending' | 'active';

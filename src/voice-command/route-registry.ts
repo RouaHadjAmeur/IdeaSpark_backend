@@ -16,49 +16,166 @@ export interface AppRoute {
 }
 
 export const APP_ROUTES: AppRoute[] = [
+    // ── Auth & Onboarding ───────────────────────────────────────────────────
+    {
+        name: 'SPLASH',
+        aliases: ['splash', 'splash screen', 'start screen', 'loading visual'],
+    },
+    {
+        name: 'ONBOARDING',
+        aliases: ['onboarding', 'welcome', 'getting started', 'intro'],
+    },
+    {
+        name: 'PERSONA',
+        aliases: ['persona', 'personas', 'my persona', 'audience', 'target audience', 'persona onboarding'],
+    },
+    {
+        name: 'LOGIN',
+        aliases: ['login', 'log in', 'sign in'],
+    },
+    {
+        name: 'SIGNUP',
+        aliases: ['signup', 'sign up', 'register', 'create account'],
+    },
+    {
+        name: 'FORGOT_PASSWORD',
+        aliases: ['forgot password', 'reset password', 'recover password'],
+    },
+    {
+        name: 'VERIFY_EMAIL',
+        aliases: ['verify email', 'email verification'],
+    },
+
+    // ── Main Navigation (bottom nav / sidebar) ──────────────────────────────
     {
         name: 'HOME',
         aliases: ['home', 'dashboard', 'main', 'main screen', 'start'],
+    },
+    {
+        name: 'BRANDS',
+        aliases: ['brands', 'brand', 'brand page', 'my brands', 'my brand', 'branding', 'brands list'],
+    },
+    {
+        name: 'CALENDAR',
+        aliases: ['calendar', 'schedule', 'planning calendar', 'timetable'],
+    },
+    {
+        name: 'PROJECTS',
+        aliases: ['execution hub', 'projects', 'my projects', 'project hub'],
+    },
+    {
+        name: 'INSIGHTS',
+        aliases: ['insights', 'analytics', 'statistics', 'stats', 'reports', 'my insights'],
     },
     {
         name: 'FAVORITES',
         aliases: ['favorites', 'favourite', 'favourites', 'saved', 'saved ideas', 'my saved', 'my favorites'],
     },
     {
-        name: 'GENERATOR',
-        aliases: ['generator', 'idea generator', 'generate', 'ideas', 'idea', 'create idea'],
-    },
-    {
-        name: 'SETTINGS',
-        aliases: ['settings', 'setting', 'preferences', 'options', 'config'],
+        name: 'HISTORY',
+        aliases: ['history', 'my history', 'past ideas', 'recent', 'recent ideas'],
     },
     {
         name: 'PROFILE',
         aliases: ['profile', 'account', 'my account', 'my profile', 'user profile'],
     },
+
+    // ── Generator Screens ────────────────────────────────────────────────────
     {
-        name: 'PLANS',
-        aliases: ['plans', 'plan', 'strategy', 'strategies', 'marketing plan', 'marketing plans', 'my plans'],
+        name: 'GENERATOR',
+        aliases: ['generator', 'idea generator', 'generate', 'ideas', 'idea', 'create idea', 'criteria selection', 'criteria'],
     },
     {
-        name: 'BRANDS',
-        aliases: ['brands', 'brand', 'brand page', 'my brands', 'my brand', 'branding'],
+        name: 'RESULTS',
+        aliases: ['results', 'generator results', 'idea results'],
     },
     {
-        name: 'CONTENT_BLOCKS',
-        aliases: ['content blocks', 'content block', 'content', 'blocks', 'my content'],
-    },
-    {
-        name: 'PERSONA',
-        aliases: ['persona', 'personas', 'my persona', 'audience', 'target audience'],
-    },
-    {
-        name: 'SLOGAN_GENERATOR',
-        aliases: ['slogan', 'slogans', 'slogan generator', 'tagline', 'taglines', 'generate slogan'],
+        name: 'IDEA_DETAIL',
+        aliases: ['idea detail', 'idea details', 'view idea', 'open idea'],
     },
     {
         name: 'VIDEO_GENERATOR',
-        aliases: ['video', 'videos', 'video ideas', 'video generator', 'video suggestions', 'generate video'],
+        aliases: ['video', 'videos', 'video ideas', 'video generator', 'video suggestions', 'generate video', 'video ideas form'],
+    },
+    {
+        name: 'VIDEO_IDEAS_RESULTS',
+        aliases: ['video ideas results', 'video results'],
+    },
+    {
+        name: 'BUSINESS_IDEAS_FORM',
+        aliases: ['business ideas', 'business generator', 'business ideas form', 'generate business ideas', 'new business idea'],
+    },
+    {
+        name: 'BUSINESS_IDEA_DETAIL',
+        aliases: ['business idea detail', 'business idea details', 'view business idea'],
+    },
+    {
+        name: 'PRODUCT_IDEAS_FORM',
+        aliases: ['product ideas', 'product generator', 'product ideas form', 'generate product ideas', 'new product idea'],
+    },
+    {
+        name: 'PRODUCT_IDEA_RESULT',
+        aliases: ['product idea result', 'product results'],
+    },
+    {
+        name: 'SLOGAN_GENERATOR',
+        aliases: ['slogan', 'slogans', 'slogan generator', 'tagline', 'taglines', 'generate slogan', 'slogans form'],
+    },
+    {
+        name: 'SLOGANS_RESULTS',
+        aliases: ['slogans results', 'slogan results', 'tagline results'],
+    },
+
+    // ── Strategic Content / Brands ──────────────────────────────────────────
+    {
+        name: 'BRAND_WORKSPACE',
+        aliases: ['brand workspace', 'workspace'],
+    },
+    {
+        name: 'BRAND_FORM',
+        aliases: ['create brand', 'edit brand', 'add brand', 'brand form', 'new brand'],
+    },
+    {
+        name: 'PROJECT_BOARD',
+        aliases: ['project board', 'board', 'kanban canvas'],
+    },
+    {
+        name: 'PLANS',
+        aliases: ['plans', 'plan', 'strategy', 'strategies', 'marketing plan', 'marketing plans', 'my plans', 'projects flow', 'plan project flow'],
+    },
+    {
+        name: 'AI_CAMPAIGN_ROADMAP',
+        aliases: ['ai campaign roadmap', 'campaign roadmap', 'roadmap'],
+    },
+    {
+        name: 'PLAN_DETAIL',
+        aliases: ['plan detail', 'plan details', 'view plan'],
+    },
+
+    // ── Other ────────────────────────────────────────────────────────────────
+    {
+        name: 'CONTENT_BLOCKS',
+        aliases: ['content blocks', 'content block', 'content', 'blocks', 'my content', 'saved ideas library'],
+    },
+    {
+        name: 'TRENDS',
+        aliases: ['trends', 'trends analysis', 'analyze trends', 'trending'],
+    },
+    {
+        name: 'CREDITS_SHOP',
+        aliases: ['credits shop', 'credits', 'shop', 'buy credits', 'store'],
+    },
+    {
+        name: 'PAYMENT',
+        aliases: ['payment', 'checkout', 'billing'],
+    },
+    {
+        name: 'EDIT_PROFILE',
+        aliases: ['edit profile', 'update profile', 'manage profile'],
+    },
+    {
+        name: 'SETTINGS',
+        aliases: ['settings', 'setting', 'preferences', 'options', 'config'],
     },
 ];
 

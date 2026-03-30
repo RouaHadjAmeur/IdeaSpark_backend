@@ -20,6 +20,8 @@ import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 
 import { VoiceCommandModule } from './voice-command/voice-command.module';
 import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
+import { CollaborationModule } from './collaboration/collaboration.module';
+import { SocialModule } from './social/social.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
     ProductIdeaModule,
     GoogleCalendarModule,
     IAScratchModule,
+    CollaborationModule,
+    SocialModule,
   ],
   controllers: [AppController],
   providers: [AppService],

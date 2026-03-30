@@ -67,8 +67,34 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
+  async findPublicById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findById(id)
+      .select('name username profile_img role skills interests email')
+      .exec();
+  }
+
   async findAll(): Promise<UserDocument[]> {
     return this.userModel.find().exec();
+  }
+
+  async searchUsers(query: string): Promise<UserDocument[]> {
+    if (!query || query.trim().length === 0) return [];
+    const searchRegex = new RegExp(query, 'i');
+    return this.userModel.find({
+      status: 'active',
+      $or: [
+        { name: searchRegex },
+        { username: searchRegex },
+        { email: searchRegex },
+        { role: searchRegex },
+        { skills: searchRegex },
+        { interests: searchRegex },
+      ],
+    })
+    .select('id _id email name username profile_img role skills interests')
+    .sort({ name: 1 })
+    .limit(20)
+    .exec();
   }
 
   async findByAuth0Sub(auth0Sub: string): Promise<UserDocument | null> {

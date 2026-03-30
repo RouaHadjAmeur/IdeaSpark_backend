@@ -44,7 +44,7 @@ export class ContentBlocksController {
     })
     @ApiResponse({ status: 201, description: 'ContentBlock created' })
     create(@Request() req, @Body() dto: CreateContentBlockDto) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.create(dto, userId);
     }
 
@@ -62,7 +62,7 @@ export class ContentBlocksController {
         @Query('planId') planId?: string,
         @Query('status') status?: ContentBlockStatus,
     ) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.findAll(userId, { brandId, planId, status });
     }
 
@@ -73,7 +73,7 @@ export class ContentBlocksController {
     @ApiResponse({ status: 200 })
     @ApiResponse({ status: 404 })
     findOne(@Request() req, @Param('id') id: string) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.findOne(id, userId);
     }
 
@@ -91,7 +91,7 @@ export class ContentBlocksController {
         @Param('id') id: string,
         @Body() dto: UpdateStatusDto,
     ) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.updateStatus(id, dto, userId);
     }
 
@@ -108,7 +108,7 @@ export class ContentBlocksController {
         @Param('id') id: string,
         @Body() dto: AttachPlanDto,
     ) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.attachPlan(id, dto, userId);
     }
 
@@ -126,7 +126,7 @@ export class ContentBlocksController {
         @Param('id') id: string,
         @Body() dto: ScheduleDto,
     ) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.schedule(id, dto, userId);
     }
 
@@ -143,7 +143,7 @@ export class ContentBlocksController {
         @Param('id') id: string,
         @Body() dto: ReplaceDto,
     ) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.replace(id, dto, userId);
     }
 
@@ -155,7 +155,7 @@ export class ContentBlocksController {
     @ApiResponse({ status: 204 })
     @ApiResponse({ status: 404 })
     remove(@Request() req, @Param('id') id: string) {
-        const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
         return this.svc.remove(id, userId);
     }
 }

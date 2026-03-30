@@ -1,4 +1,4 @@
-import { Controller, Patch, Get, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Patch, Get, Delete, Body, Param, Query, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -8,8 +8,8 @@ import { User } from './schemas/user.schema';
 
 @ApiTags('Users')
 @Controller('users')
-// @UseGuards(JwtAuthGuard) // COMMENTED OUT FOR DEVELOPMENT TESTING
-// @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -39,9 +39,8 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized - JWT token required',
   })
-  async getProfile(@CurrentUser() user: User) {
-    // For testing: use a default test user ID if not authenticated
-    const userId = user ? ((user as any)._id || (user as any).id) : '675b7e8a2e3f4d1234567890';
+  async getProfile(@CurrentUser() user: any) {
+    const userId = user._id || user.id;
     return this.usersService.findById(userId.toString());
   }
 
@@ -74,22 +73,10 @@ export class UsersController {
     description: 'Unauthorized',
   })
   async updateProfile(
-    @CurrentUser() user: User,
+    @CurrentUser() user: any,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    // The user object from CurrentUser decorator might have _id or id depending on how it's attached.
-    // Based on user.schema.ts, it has _id (Mongoose document) but virtual id.
-    // However, when passed through JWT strategy, we need to check what's actually there.
-    // Usually strategy attaches the user document or payload.
-    // Let's assume it has the id or _id.
-    
-    // In typical NestJS + Mongoose + Passport JWT setup:
-    // The JwtStrategy validate method returns the user object which is attached to request.user
-    
-    // We can cast user to any if types conflict, but let's try to use the ID.
-    // For testing: use a default test user ID if not authenticated
-    const userId = user ? ((user as any)._id || (user as any).id) : '675b7e8a2e3f4d1234567890';
-
+    const userId = user._id || user.id;
     return this.usersService.updateUser(userId.toString(), updateProfileDto);
   }
 
@@ -136,6 +123,20 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search active users',
+    description: 'Find users by name, username, email, skills, role, or interests. Useful for inviting collaborators.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Found users matching the query',
+  })
+  async searchUsers(@Query('q') q: string) {
+    if (!q) return [];
+    return this.usersService.searchUsers(q);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
@@ -161,5 +162,18 @@ export class UsersController {
   })
   async deleteUser(@Param('id') id: string) {
     await this.usersService.deleteById(id);
+  }
+
+  @Get('public-profile/:id')
+  @ApiOperation({
+    summary: 'Get public user profile',
+    description: 'Retrieve sanitized public information of any user by their ID.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Public profile retrieved successfully',
+  })
+  async getPublicProfile(@Param('id') id: string) {
+    return this.usersService.findPublicById(id);
   }
 }

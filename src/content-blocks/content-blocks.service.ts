@@ -1,8 +1,10 @@
-import {
+    import {
     Injectable,
     BadRequestException,
     NotFoundException,
     Logger,
+    Inject,
+    forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,6 +24,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { AttachPlanDto } from './dto/attach-plan.dto';
 import { ScheduleDto } from './dto/schedule.dto';
 import { ReplaceDto } from './dto/replace.dto';
+import { CollaborationService } from '../collaboration/collaboration.service';
 
 @Injectable()
 export class ContentBlocksService {
@@ -30,6 +33,8 @@ export class ContentBlocksService {
     constructor(
         @InjectModel(ContentBlock.name)
         private readonly model: Model<ContentBlockDocument>,
+        @Inject(forwardRef(() => CollaborationService))
+        private readonly collaborationService: CollaborationService,
     ) { }
 
     // ─── Create (Save as Idea) ────────────────────────────────────────────────
@@ -71,7 +76,14 @@ export class ContentBlocksService {
         userId: string,
         filters?: { brandId?: string; planId?: string; status?: ContentBlockStatus },
     ): Promise<ContentBlockDocument[]> {
-        const query: Record<string, any> = { userId };
+        const collabPlanIds = await this.collaborationService.getCollaboratorPlanIds(userId);
+        
+        const query: Record<string, any> = {
+            $or: [
+                { userId },
+                { planId: { $in: collabPlanIds } }
+            ]
+        };
         if (filters?.brandId) query.brandId = filters.brandId;
         if (filters?.planId) query.planId = filters.planId;
         if (filters?.status) query.status = filters.status;
@@ -81,7 +93,15 @@ export class ContentBlocksService {
     // ─── Find One ────────────────────────────────────────────────────────────
 
     async findOne(id: string, userId: string): Promise<ContentBlockDocument> {
-        const block = await this.model.findOne({ _id: id, userId }).exec();
+        let block = await this.model.findOne({ _id: id, userId }).exec();
+        if (!block) {
+            // Check collaboration access for the specific plan
+            const blockInPlan = await this.model.findById(id).exec();
+            if (blockInPlan?.planId) {
+                await this.collaborationService.assertAccess(blockInPlan.planId, userId);
+                block = blockInPlan;
+            }
+        }
         if (!block) throw new NotFoundException(`ContentBlock ${id} not found`);
         return block;
     }
@@ -102,15 +122,29 @@ export class ContentBlocksService {
             );
         }
 
+        const oldStatus = block.status;
         block.status = dto.status;
-        return block.save();
+        const saved = await block.save();
+
+        if (block.planId) {
+            await this.collaborationService.logActivity(
+                block.planId,
+                userId,
+                'User', // Ideally we'd have the user's name here
+                'update',
+                'status',
+                oldStatus,
+                dto.status
+            );
+        }
+        return saved;
     }
 
     // ─── Attach to Plan ───────────────────────────────────────────────────────
 
     async attachPlan(id: string, dto: AttachPlanDto, userId: string): Promise<ContentBlockDocument> {
         const block = await this.findOne(id, userId);
-
+        const oldPlan = block.planId;
         block.planId = dto.planId;
         block.planPhaseId = dto.planPhaseId ?? block.planPhaseId;
         block.phaseLabel = dto.phaseLabel ?? block.phaseLabel;
@@ -121,7 +155,19 @@ export class ContentBlocksService {
         }
 
         this.logger.log(`ContentBlock ${id} attached to plan ${dto.planId}`);
-        return block.save();
+        const saved = await block.save();
+
+        await this.collaborationService.logActivity(
+            dto.planId,
+            userId,
+            'User',
+            'update',
+            'plan_attachment',
+            oldPlan ?? 'none',
+            dto.planId
+        );
+
+        return saved;
     }
 
     // ─── Schedule ─────────────────────────────────────────────────────────────
@@ -141,7 +187,21 @@ export class ContentBlocksService {
         block.status = ContentBlockStatus.SCHEDULED;
 
         this.logger.log(`ContentBlock ${id} scheduled for ${dto.scheduledAt}`);
-        return block.save();
+        const saved = await block.save();
+
+        if (block.planId) {
+            await this.collaborationService.logActivity(
+                block.planId,
+                userId,
+                'User',
+                'update',
+                'scheduledAt',
+                undefined,
+                dto.scheduledAt
+            );
+        }
+
+        return saved;
     }
 
     // ─── Replace ──────────────────────────────────────────────────────────────
@@ -173,9 +233,29 @@ export class ContentBlocksService {
     // ─── Delete ───────────────────────────────────────────────────────────────
 
     async remove(id: string, userId: string): Promise<void> {
-        const result = await this.model.deleteOne({ _id: id, userId }).exec();
+        const block = await this.findOne(id, userId);
+        
+        // If it's a collaborator removing, they must have access to the plan
+        if (block.userId !== userId && block.planId) {
+            await this.collaborationService.assertAccess(block.planId, userId);
+        }
+
+        const planId = block.planId;
+        const result = await this.model.deleteOne({ _id: id }).exec();
         if (result.deletedCount === 0) {
             throw new NotFoundException(`ContentBlock ${id} not found`);
+        }
+
+        if (planId) {
+            await this.collaborationService.logActivity(
+                planId,
+                userId,
+                'User',
+                'delete',
+                'content_block',
+                block.title,
+                undefined
+            );
         }
     }
 
