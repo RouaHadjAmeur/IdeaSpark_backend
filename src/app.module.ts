@@ -17,11 +17,11 @@ import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 import { ProductIdeaModule } from './product-idea/product-idea.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
-
 import { VoiceCommandModule } from './voice-command/voice-command.module';
 import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { SocialModule } from './social/social.module';
+import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
 
 @Module({
   imports: [
@@ -55,6 +55,7 @@ import { SocialModule } from './social/social.module';
     IAScratchModule,
     CollaborationModule,
     SocialModule,
+    IAFinetuningModule,
   ],
   controllers: [AppController],
   providers: [AppService],

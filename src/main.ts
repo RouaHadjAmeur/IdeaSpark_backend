@@ -105,8 +105,8 @@ Click the "Authorize" button (🔓) and enter your JWT token to test protected e
     prefix: '/uploads',
   });
 
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(3000, '0.0.0.0');
 
   console.log(`\n Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation: http://localhost:${port}/api\n`);
