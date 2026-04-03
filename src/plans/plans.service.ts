@@ -286,6 +286,35 @@ export class PlansService {
         return updated!;
     }
 
+    // ─── getPlanStats ─────────────────────────────────────────────────────────────
+
+    async getPlanStats(planId: string, userId: string) {
+        const plan = await this.findOne(planId, userId);
+        const blocks = plan.phases.flatMap(p => p.contentBlocks);
+
+        const byFormat: Record<string, number> = {};
+        const byCta: Record<string, number> = {};
+        const byPillar: Record<string, number> = {};
+
+        for (const b of blocks) {
+            byFormat[b.format] = (byFormat[b.format] || 0) + 1;
+            byCta[b.ctaType] = (byCta[b.ctaType] || 0) + 1;
+            byPillar[b.pillar] = (byPillar[b.pillar] || 0) + 1;
+        }
+
+        return {
+            totalPosts: blocks.length,
+            byFormat,
+            byCta,
+            byPillar,
+            byPhase: plan.phases.map(p => ({
+                weekNumber: p.weekNumber,
+                name: p.name,
+                count: p.contentBlocks.length,
+            })),
+        };
+    }
+
     // ─── getCalendar ─────────────────────────────────────────────────────────────
 
     async getCalendar(planId: string, userId: string): Promise<CalendarEntryDocument[]> {

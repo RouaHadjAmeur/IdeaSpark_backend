@@ -29,7 +29,7 @@ interface GeneratedVideoIdea {
 
 @Injectable()
 export class OpenAIService {
-    private openai: OpenAI;
+    private openai: OpenAI | null = null;
     private model: string;
 
     constructor(
@@ -37,10 +37,9 @@ export class OpenAIService {
         private personaService: PersonaService,
     ) {
         const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-        if (!apiKey) {
-            throw new Error('OPENAI_API_KEY is not configured in environment variables');
+        if (apiKey) {
+            this.openai = new OpenAI({ apiKey });
         }
-        this.openai = new OpenAI({ apiKey });
         this.model = this.configService.get<string>('OPENAI_MODEL') || 'gpt-4o-mini';
     }
 
@@ -102,6 +101,10 @@ export class OpenAIService {
             });
         } else {
             messages.push({ role: 'user', content: userPrompt });
+        }
+
+        if (!this.openai) {
+            return this.generateFallbackIdea(request);
         }
 
         const response = await this.openai.chat.completions.create({
@@ -294,6 +297,7 @@ Generate a creative, engaging video script that feels natural and authentic for 
      * Analyze product image to pre-fill the form
      */
     async analyzeProductImage(productImage: Buffer): Promise<Partial<CreateVideoRequestDto>> {
+        if (!this.openai) return {};
         const prompt = `Analyze this product image and suggest values for a video generation form.
 Return ONLY valid JSON with these fields:
 {
@@ -345,6 +349,7 @@ Return ONLY valid JSON with these fields:
         instructions: string,
         persona?: Persona | null,
     ): Promise<GeneratedVideoIdea> {
+        if (!this.openai) return this.generateFallbackIdea({ productName: '', productCategory: '', productDescription: '', batchSize: 1, language: 'English', tone: 'Professional', platform: 'Instagram', duration: 30, keyBenefits: [], targetAudience: '', painPoint: '' } as any);
         const systemPrompt = `You are refining an existing video script.
 Original Idea: ${JSON.stringify(previousIdea)}
 

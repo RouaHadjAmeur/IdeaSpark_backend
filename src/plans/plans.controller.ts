@@ -169,6 +169,15 @@ export class PlansController {
         return { alerts };
     }
 
+    // ─── GET /plans/:id/stats ────────────────────────────────────────────────────
+
+    @Get(':id/stats')
+    @ApiParam({ name: 'id' })
+    @ApiOperation({ summary: 'Statistiques d\'un plan (formats, CTA, piliers, phases)' })
+    getStats(@Param('id') id: string, @CurrentUser() user: User) {
+        return this.plansService.getPlanStats(id, this.resolveUserId(user));
+    }
+
     // ─── PATCH /plans/:id/campaign-copy ─────────────────────────────────────────
 
     @Patch(':id/campaign-copy')
