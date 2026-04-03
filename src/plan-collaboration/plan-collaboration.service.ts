@@ -12,7 +12,7 @@ import { AddCommentDto } from './dto/add-comment.dto';
 import { AddHistoryDto } from './dto/add-history.dto';
 
 @Injectable()
-export class CollaborationService {
+export class PlanCollaborationService {
   constructor(
     @InjectModel(PlanMember.name) private memberModel: Model<PlanMemberDocument>,
     @InjectModel(PostComment.name) private commentModel: Model<PostCommentDocument>,

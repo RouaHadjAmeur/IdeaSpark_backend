@@ -14,7 +14,7 @@ import { PlansModule } from './plans/plans.module';
 import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 import { ProductIdeaModule } from './product-idea/product-idea.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
-import { CollaborationModule } from './collaboration/collaboration.module';
+import { PlanCollaborationModule } from './plan-collaboration/plan-collaboration.module';
 import { CaptionGeneratorModule } from './caption-generator/caption-generator.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
@@ -45,7 +45,7 @@ import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
     ContentBlocksModule,
     ProductIdeaModule,
     GoogleCalendarModule,
-    CollaborationModule,
+    PlanCollaborationModule,
     CaptionGeneratorModule,
     NotificationsModule,
     PlanTemplatesModule,

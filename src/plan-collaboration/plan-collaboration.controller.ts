@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CollaborationService } from './collaboration.service';
+import { PlanCollaborationService } from './plan-collaboration.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
@@ -11,8 +11,8 @@ import { AddHistoryDto } from './dto/add-history.dto';
 @ApiBearerAuth('bearer')
 @UseGuards(JwtAuthGuard)
 @Controller('collaboration')
-export class CollaborationController {
-  constructor(private readonly service: CollaborationService) {}
+export class PlanCollaborationController {
+  constructor(private readonly service: PlanCollaborationService) {}
 
   // ─── Members ────────────────────────────────────────────────────────────────
 
