@@ -8,18 +8,28 @@ import {
   GenerateProductResponse,
   HealthResponse,
   ExamplesResponse,
+  ProductSection,
 } from './ia-finetuning.model';
 
 @Injectable()
 export class IAFinetuningService {
-  private client: AxiosInstance;
+  private model1Client: AxiosInstance;
+  private model2Client: AxiosInstance;
 
   constructor(private readonly configService: ConfigService) {
-    const baseURL =
-      this.configService.get<string>('IA_FINETUNING_API_URL') || 'http://localhost:8000';
+    const model1URL = this.configService.get<string>('MODEL1_URL') || 'http://20.199.16.13:8080';
+    const model2URL = this.configService.get<string>('MODEL2_URL') || 'http://20.199.16.13:8081';
 
-    this.client = axios.create({
-      baseURL,
+    this.model1Client = axios.create({
+      baseURL: model1URL,
+      timeout: 120000, // 2 minutes timeout for AI processing
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.model2Client = axios.create({
+      baseURL: model2URL,
       timeout: 120000, // 2 minutes timeout for AI processing
       headers: {
         'Content-Type': 'application/json',
@@ -30,10 +40,14 @@ export class IAFinetuningService {
   // Prompt Refiner Methods
   async refinePrompt(dto: RefinePromptDto): Promise<RefinePromptResponse> {
     try {
-      const response = await this.client.post<RefinePromptResponse>('/refine', {
+      const response = await this.model1Client.post<{ result: string }>('/refiner/refine', {
         prompt: dto.prompt,
       });
-      return response.data;
+      
+      return {
+        result: response.data.result,
+        model_loaded: true
+      };
     } catch (error: any) {
       if (error.response) {
         throw new HttpException(
@@ -48,11 +62,12 @@ export class IAFinetuningService {
   // Product Generator Methods
   async generateProduct(dto: GenerateProductDto): Promise<GenerateProductResponse> {
     try {
-      const response = await this.client.post<GenerateProductResponse>('/generate', {
+      const response = await this.model2Client.post<GenerateProductResponse>('/generator/generate', {
         besoin: dto.besoin,
         temperature: dto.temperature,
         max_tokens: dto.max_tokens,
       });
+      
       return response.data;
     } catch (error: any) {
       if (error.response) {
@@ -66,34 +81,38 @@ export class IAFinetuningService {
   }
 
   async getExamples(): Promise<ExamplesResponse> {
-    try {
-      const response = await this.client.get<ExamplesResponse>('/examples');
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        throw new HttpException(
-          error.response.data?.detail || 'Erreur lors de la récupération des exemples',
-          error.response.status,
-        );
-      }
-      throw new HttpException('Impossible de récupérer les exemples', HttpStatus.BAD_GATEWAY);
-    }
+    return {
+      examples: [
+        "Les jeunes parents ont du mal à trouver du temps pour faire du sport.",
+        "Les étudiants en informatique cherchent des projets pratiques pour leur portfolio.",
+        "Les petites entreprises ont besoin d'outils de gestion abordables.",
+        "Les personnes âgées veulent rester connectées avec leur famille.",
+        "Les freelancers ont du mal à gérer leur temps et leurs factures."
+      ]
+    };
   }
 
   // Health Check Methods
   async checkHealth(): Promise<HealthResponse> {
-    try {
-      const response = await this.client.get<HealthResponse>('/health');
-      return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        throw new HttpException(
-          error.response.data?.detail || 'Erreur lors de la vérification de santé',
-          error.response.status,
-        );
-      }
-      throw new HttpException('API IA Finetuning non joignable', HttpStatus.BAD_GATEWAY);
-    }
+    const [unifiedHealth, generatorHealth] = await Promise.allSettled([
+      this.model1Client.get<any>('/'),
+      this.model2Client.get<any>('/generator/health'),
+    ]);
+
+    const unifiedOk = unifiedHealth.status === 'fulfilled';
+    const generatorOk =
+      generatorHealth.status === 'fulfilled' &&
+      generatorHealth.value.data.status === 'ok';
+
+    return {
+      status: unifiedOk && generatorOk ? 'ok' : 'error',
+      prompt_refiner_loaded: unifiedOk,
+      product_generator_loaded: generatorOk,
+      models_available: [
+        ...(unifiedOk ? ['prompt-refiner'] : []),
+        ...(generatorOk ? ['product-generator'] : []),
+      ],
+    };
   }
 
   // Utility Methods

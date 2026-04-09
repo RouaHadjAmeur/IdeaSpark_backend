@@ -15,6 +15,11 @@ import { ContentBlocksModule } from './content-blocks/content-blocks.module';
 
 import { VoiceCommandModule } from './voice-command/voice-command.module';
 import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
+import { InvitationModule } from './invitation/invitation.module';
+import { FriendshipModule } from './friendship/friendship.module';
+import { MessageModule } from './message/message.module';
+import { NotifContactsModule } from './notif-contacts/notif-contacts.module';
+import { CallModule } from './call/call.module';
 
 @Module({
   imports: [
@@ -42,6 +47,11 @@ import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
     ContentBlocksModule,
     VoiceCommandModule,
     IAFinetuningModule,
+    InvitationModule,
+    FriendshipModule,
+    MessageModule,
+    NotifContactsModule,
+    CallModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -196,4 +196,19 @@ export class UsersService {
     }
     return user;
   }
+
+  async searchUsers(query: string, currentUserId: string): Promise<UserDocument[]> {
+    if (!query) return [];
+    
+    return this.userModel
+      .find({
+        _id: { $ne: currentUserId },
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } },
+        ],
+      })
+      .limit(20)
+      .exec();
+  }
 }

@@ -1,10 +1,11 @@
-import { Controller, Patch, Get, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
+import { Controller, Patch, Get, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SearchUserDto } from './dto/search-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from './schemas/user.schema';
+import * as userSchema from './schemas/user.schema';
 
 @ApiTags('Users')
 @Controller('users')
@@ -12,6 +13,24 @@ import { User } from './schemas/user.schema';
 // @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search users',
+    description: 'Search for users by name or email.',
+  })
+  @ApiQuery({ name: 'query', required: false, description: 'Search query' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of users matching the search query',
+    type: [userSchema.User],
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async search(@Query('query') query: string, @CurrentUser() currentUser: any) {
+    const currentUserId = currentUser?._id || currentUser?.id || currentUser?.userId;
+    return this.usersService.searchUsers(query, currentUserId?.toString());
+  }
 
   @Get('profile')
   @ApiOperation({
@@ -39,7 +58,7 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized - JWT token required',
   })
-  async getProfile(@CurrentUser() user: User) {
+  async getProfile(@CurrentUser() user: userSchema.User) {
     // For testing: use a default test user ID if not authenticated
     const userId = user ? ((user as any)._id || (user as any).id) : '675b7e8a2e3f4d1234567890';
     return this.usersService.findById(userId.toString());
@@ -67,14 +86,14 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Profile updated successfully',
-    type: User,
+    type: userSchema.User,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized',
   })
   async updateProfile(
-    @CurrentUser() user: User,
+    @CurrentUser() user: userSchema.User,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     // The user object from CurrentUser decorator might have _id or id depending on how it's attached.
