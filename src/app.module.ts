@@ -22,6 +22,10 @@ import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { SocialModule } from './social/social.module';
 import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
+import { PlanCollaborationModule } from './plan-collaboration/plan-collaboration.module';
+import { CaptionGeneratorModule } from './caption-generator/caption-generator.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
 
 @Module({
   imports: [
@@ -56,6 +60,10 @@ import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
     CollaborationModule,
     SocialModule,
     IAFinetuningModule,
+    PlanCollaborationModule,
+    CaptionGeneratorModule,
+    NotificationsModule,
+    PlanTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

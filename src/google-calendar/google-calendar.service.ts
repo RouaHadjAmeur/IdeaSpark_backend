@@ -24,6 +24,20 @@ export class GoogleCalendarService {
     );
   }
 
+  // Rafraîchir l'access token avec le refresh token
+  async refreshAccessToken(refreshToken: string) {
+    try {
+      this.oauth2Client.setCredentials({ refresh_token: refreshToken });
+      const { credentials } = await this.oauth2Client.refreshAccessToken();
+      return {
+        accessToken: credentials.access_token,
+        expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : null,
+      };
+    } catch (error) {
+      throw new BadRequestException('Failed to refresh access token');
+    }
+  }
+
   // Générer l'URL d'autorisation Google
   getAuthUrl(): string {
     const scopes = [
