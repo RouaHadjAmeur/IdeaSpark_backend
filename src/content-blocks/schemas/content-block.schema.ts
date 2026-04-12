@@ -114,6 +114,10 @@ export class ContentBlock {
     @Prop({ type: [String], default: [] })
     tags: string[];
 
+    // ─ Generated image
+    @Prop({ type: String, default: null })
+    imageUrl: string | null;
+
     // ─ Scheduling
     @Prop({ type: Date, default: null })
     scheduledAt: Date | null;

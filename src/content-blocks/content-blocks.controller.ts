@@ -25,6 +25,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { AttachPlanDto } from './dto/attach-plan.dto';
 import { ScheduleDto } from './dto/schedule.dto';
 import { ReplaceDto } from './dto/replace.dto';
+import { UpdateImageDto } from './dto/update-image.dto';
 import { ContentBlockStatus } from './schemas/content-block.schema';
 // import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -157,5 +158,23 @@ export class ContentBlocksController {
     remove(@Request() req, @Param('id') id: string) {
         const userId = req.user ? (req.user.userId || req.user._id) : 'anonymous';
         return this.svc.remove(id, userId);
+    }
+
+    // ─── PATCH /content-blocks/:id/image ──────────────────────────────────────
+
+    @Patch(':id/image')
+    @ApiOperation({
+        summary: 'Update ContentBlock image URL',
+        description: 'Sets the imageUrl field for a ContentBlock after generating an image.',
+    })
+    @ApiResponse({ status: 200 })
+    @ApiResponse({ status: 404 })
+    updateImage(
+        @Request() req,
+        @Param('id') id: string,
+        @Body() dto: UpdateImageDto,
+    ) {
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
+        return this.svc.updateImageUrl(id, dto.imageUrl, userId);
     }
 }

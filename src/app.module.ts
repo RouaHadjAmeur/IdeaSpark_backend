@@ -18,6 +18,8 @@ import { PlanCollaborationModule } from './plan-collaboration/plan-collaboration
 import { CaptionGeneratorModule } from './caption-generator/caption-generator.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
+import { AiImageGeneratorModule } from './ai-image-generator/ai-image-generator.module';
+import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
     CaptionGeneratorModule,
     NotificationsModule,
     PlanTemplatesModule,
+    AiImageGeneratorModule,
+    TrendingHashtagsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
