@@ -20,6 +20,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
 import { AiImageGeneratorModule } from './ai-image-generator/ai-image-generator.module';
 import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.module';
+import { PostAnalyzerModule } from './post-analyzer/post-analyzer.module';
+import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
+import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.mo
     PlanTemplatesModule,
     AiImageGeneratorModule,
     TrendingHashtagsModule,
+    PostAnalyzerModule,
+    ViralHooksModule,
+    OptimalTimingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
