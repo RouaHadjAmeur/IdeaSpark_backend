@@ -8,6 +8,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { MessageService } from '../message/message.service';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -18,6 +19,8 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private connectedUsers = new Map<string, string>(); // userId -> socketId
+
+  constructor(private readonly messageService: MessageService) {}
 
   handleConnection(client: Socket) {
     const userId = client.handshake.query.userId as string;
@@ -38,15 +41,30 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('initCall')
-  handleInitCall(
-    @MessageBody() data: { callerId: string; receiverId: string; callerName: string },
+  async handleInitCall(
+    @MessageBody() data: { callerId: string; receiverId: string; callerName: string; type?: string },
     @ConnectedSocket() client: Socket,
   ) {
     const receiverSocketId = this.connectedUsers.get(data.receiverId);
+    
+    // Save call trace in MongoDB
+    const callType = data.type === 'video' ? 'call_video' : 'call_audio';
+    try {
+      await this.messageService.create({
+        content: data.type === 'video' ? 'Appel vidéo' : 'Appel vocal',
+        receiver: data.receiverId,
+        messageType: callType as any,
+      }, data.callerId);
+      console.log(`Trace d'appel (${callType}) enregistrée pour ${data.callerId} -> ${data.receiverId}`);
+    } catch (e) {
+      console.error(`Erreur lors de l'enregistrement de la trace d'appel: ${e.message}`);
+    }
+
     if (receiverSocketId) {
       this.server.to(receiverSocketId).emit('incomingCall', {
         callerId: data.callerId,
         callerName: data.callerName,
+        type: data.type || 'audio',
       });
     }
   }

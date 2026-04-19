@@ -20,6 +20,7 @@ import { FriendshipModule } from './friendship/friendship.module';
 import { MessageModule } from './message/message.module';
 import { NotifContactsModule } from './notif-contacts/notif-contacts.module';
 import { CallModule } from './call/call.module';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CallModule } from './call/call.module';
     MailModule,
     AuthModule,
     UsersModule,
+    LogsModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,

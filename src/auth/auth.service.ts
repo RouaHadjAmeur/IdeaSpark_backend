@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
+import { LogsService } from '../logs/logs.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -30,6 +31,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
         private readonly mailService: MailService,
+        private readonly logsService: LogsService,
     ) { }
 
     async register(registerDto: RegisterDto): Promise<{ user: Record<string, unknown>; accessToken: string }> {
@@ -41,6 +43,7 @@ export class AuthService {
             name: registerDto.name,
             phone: registerDto.phone,
             status: 'pending',
+            role: 'USER',
         });
 
         const code = generateSixDigitCode();
@@ -56,6 +59,8 @@ export class AuthService {
         }
 
         const accessToken = this.generateToken(user);
+
+        await this.logsService.createLog(user.id || (user as any)._id, 'REGISTER', `New user registered: ${user.email}`);
 
         return {
             user: toPlainUser(user),
@@ -76,6 +81,29 @@ export class AuthService {
         }
 
         const accessToken = this.generateToken(user);
+
+        await this.logsService.createLog(user.id || (user as any)._id, 'LOGIN', `User logged in: ${user.email}`);
+
+        return {
+            user: toPlainUser(user),
+            accessToken,
+        };
+    }
+
+    async loginAdmin(loginDto: LoginDto): Promise<{ user: Record<string, unknown>; accessToken: string }> {
+        const user = await this.validateUser(loginDto.email, loginDto.password);
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid email or password');
+        }
+
+        if ((user as any).role !== 'ADMIN') {
+            throw new UnauthorizedException('Access denied: Admins only');
+        }
+
+        const accessToken = this.generateToken(user);
+
+        await this.logsService.createLog(user.id || (user as any)._id, 'ADMIN_LOGIN', `Admin logged in: ${user.email}`);
 
         return {
             user: toPlainUser(user),
@@ -107,6 +135,9 @@ export class AuthService {
         if (!updated) {
             throw new BadRequestException('User not found');
         }
+
+        await this.logsService.createLog(updated.id || (updated as any)._id, 'VERIFY_EMAIL', `Email verified for user: ${updated.email}`);
+
         const accessToken = this.generateToken(updated);
         return { user: toPlainUser(updated), accessToken };
     }
@@ -157,6 +188,7 @@ export class AuthService {
             sub: userId,
             email: user.email,
             name: user.name,
+            role: (user as any).role || 'USER',
         };
 
         return this.jwtService.sign(payload);

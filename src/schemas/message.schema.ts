@@ -21,11 +21,17 @@ export class Message {
   @Prop({ default: false })
   isDeleted: boolean;           
 
-  @Prop({ type: String, default: 'text', enum: ['text', 'image', 'file'] })
+  @Prop({ type: String, default: 'text', enum: ['text', 'image', 'file', 'voice', 'call_audio', 'call_video'] })
   messageType: string;         
 
   @Prop({ type: String, default: null })
   attachmentUrl: string;        
+
+  @Prop({ default: false })
+  isReported: boolean;
+
+  @Prop({ type: String, default: null })
+  reportReason: string;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

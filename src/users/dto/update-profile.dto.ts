@@ -28,4 +28,13 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profile_img?: string;
+
+  @ApiProperty({
+    description: 'User role',
+    enum: ['USER', 'ADMIN'],
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  role?: 'USER' | 'ADMIN';
 }

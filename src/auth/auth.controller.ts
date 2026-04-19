@@ -163,6 +163,19 @@ export class AuthController {
         return this.authService.login(loginDto);
     }
 
+    @Post('login-admin')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Admin login with email and password',
+        description: 'Authenticates an admin user, returning a JWT if they have the ADMIN role.',
+    })
+    @ApiBody({ type: LoginDto })
+    @ApiResponse({ status: 200, description: 'Login successful.' })
+    @ApiResponse({ status: 401, description: 'Unauthorized.' })
+    async loginAdmin(@Body() loginDto: LoginDto) {
+        return this.authService.loginAdmin(loginDto);
+    }
+
     @Post('forgot-password')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({

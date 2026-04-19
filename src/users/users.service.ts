@@ -71,6 +71,40 @@ export class UsersService {
     return this.userModel.find().exec();
   }
 
+  async findAllUsers(): Promise<UserDocument[]> {
+    return this.userModel.find({ role: 'USER' }).exec();
+  }
+
+  async findAllAdmins(): Promise<UserDocument[]> {
+    return this.userModel.find({ role: 'ADMIN' }).exec();
+  }
+
+  async getStats(): Promise<{ totalUsers: number; activeUsers: number; blockedUsers: number; totalAdmins: number }> {
+    const [totalUsers, activeUsers, blockedUsers, totalAdmins] = await Promise.all([
+      this.userModel.countDocuments({ role: 'USER' }).exec(),
+      this.userModel.countDocuments({ role: 'USER', status: 'active' }).exec(),
+      this.userModel.countDocuments({ role: 'USER', status: 'blocked' }).exec(),
+      this.userModel.countDocuments({ role: 'ADMIN' }).exec(),
+    ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      blockedUsers,
+      totalAdmins,
+    };
+  }
+
+  async updateUserStatus(userId: string, status: 'active' | 'pending' | 'blocked'): Promise<UserDocument> {
+    const user = await this.userModel
+      .findByIdAndUpdate(userId, { $set: { status } }, { new: true })
+      .exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   async findByAuth0Sub(auth0Sub: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ auth0Sub }).exec();
   }

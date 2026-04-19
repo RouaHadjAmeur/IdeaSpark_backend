@@ -41,9 +41,13 @@ export class User {
     @Prop()
     auth0Sub?: string;
 
+    @ApiProperty({ description: 'User role', enum: ['USER', 'ADMIN'], default: 'USER' })
+    @Prop({ default: 'USER', enum: ['USER', 'ADMIN'] })
+    role: 'USER' | 'ADMIN';
+
     /** Account status: pending until email is verified, then active. */
     @Prop({ default: 'active' })
-    status?: 'pending' | 'active';
+    status?: 'pending' | 'active' | 'blocked';
 
     @Prop({ select: false })
     emailVerificationCode?: string;

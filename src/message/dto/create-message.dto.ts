@@ -10,9 +10,9 @@ export class CreateMessageDto {
   @IsMongoId()
   receiver: string;
 
-  @ApiProperty({ example: 'text', description: 'Type de message', enum: ['text', 'image', 'file'], required: false })
+  @ApiProperty({ example: 'text', description: 'Type de message', enum: ['text', 'image', 'file', 'voice', 'call_audio', 'call_video'], required: false })
   @IsOptional()
-  messageType?: 'text' | 'image' | 'file';
+  messageType?: 'text' | 'image' | 'file' | 'voice' | 'call_audio' | 'call_video';
 
   @ApiProperty({ example: 'https://example.com/file.pdf', description: 'URL du fichier joint (si applicable)', required: false })
   @IsOptional()

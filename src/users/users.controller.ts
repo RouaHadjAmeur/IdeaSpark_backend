@@ -1,6 +1,7 @@
 import { Controller, Patch, Get, Delete, Body, Param, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { LogsService } from '../logs/logs.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SearchUserDto } from './dto/search-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,7 +13,10 @@ import * as userSchema from './schemas/user.schema';
 // @UseGuards(JwtAuthGuard) // COMMENTED OUT FOR DEVELOPMENT TESTING
 // @ApiBearerAuth()
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly logsService: LogsService,
+  ) {}
 
   @Get('search')
   @ApiOperation({
@@ -64,6 +68,41 @@ export class UsersController {
     return this.usersService.findById(userId.toString());
   }
 
+  @Get('users')
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiResponse({ status: 200, type: [userSchema.User] })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getAllUsers() {
+    return this.usersService.findAllUsers();
+  }
+
+  @Get('admins')
+  @ApiOperation({ summary: 'Get all admins' })
+  @ApiResponse({ status: 200, type: [userSchema.User] })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getAllAdmins() {
+    return this.usersService.findAllAdmins();
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get user statistics' })
+  @ApiResponse({ 
+    status: 200, 
+    schema: {
+      example: {
+        totalUsers: 3850,
+        activeUsers: 3234,
+        blockedUsers: 116,
+        totalAdmins: 24,
+      }
+    }
+  })
+  async getStats() {
+    return this.usersService.getStats();
+  }
+
   @Patch('profile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -109,7 +148,11 @@ export class UsersController {
     // For testing: use a default test user ID if not authenticated
     const userId = user ? ((user as any)._id || (user as any).id) : '675b7e8a2e3f4d1234567890';
 
-    return this.usersService.updateUser(userId.toString(), updateProfileDto);
+    const updatedUser = await this.usersService.updateUser(userId.toString(), updateProfileDto);
+    
+    await this.logsService.createLog(userId, 'UPDATE_PROFILE', `User updated their profile: ${updatedUser.email}`);
+    
+    return updatedUser;
   }
 
   @Get()
@@ -151,7 +194,7 @@ export class UsersController {
     status: 401,
     description: 'Unauthorized - JWT token required',
   })
-  async getAllUsers() {
+  async findAll() {
     return this.usersService.findAll();
   }
 
@@ -178,7 +221,53 @@ export class UsersController {
     status: 404,
     description: 'User not found',
   })
-  async deleteUser(@Param('id') id: string) {
+  async deleteUser(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    const adminId = currentUser?._id || currentUser?.id || '675b7e8a2e3f4d1234567890';
+    const userToDelete = await this.usersService.findById(id);
     await this.usersService.deleteById(id);
+    
+    await this.logsService.createLog(adminId, 'DELETE_USER', `Admin deleted user: ${userToDelete?.email || id}`, id);
+  }
+
+  @Patch('users/:id/block')
+  @ApiOperation({ summary: 'Block user' })
+  @ApiResponse({ status: 200, type: userSchema.User })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async blockUser(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    const adminId = currentUser?._id || currentUser?.id || '675b7e8a2e3f4d1234567890';
+    const updatedUser = await this.usersService.updateUserStatus(id, 'blocked');
+    
+    await this.logsService.createLog(adminId, 'BLOCK_USER', `Admin blocked user: ${updatedUser.email}`, id);
+    
+    return updatedUser;
+  }
+
+  @Patch('users/:id/unblock')
+  @ApiOperation({ summary: 'Unblock user' })
+  @ApiResponse({ status: 200, type: userSchema.User })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async unblockUser(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    const adminId = currentUser?._id || currentUser?.id || '675b7e8a2e3f4d1234567890';
+    const updatedUser = await this.usersService.updateUserStatus(id, 'active');
+    
+    await this.logsService.createLog(adminId, 'UNBLOCK_USER', `Admin unblocked user: ${updatedUser.email}`, id);
+    
+    return updatedUser;
+  }
+
+  @Delete('users/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete user' })
+  @ApiResponse({ status: 204, description: 'User deleted' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async deleteUserAlt(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    const adminId = currentUser?._id || currentUser?.id || '675b7e8a2e3f4d1234567890';
+    const userToDelete = await this.usersService.findById(id);
+    await this.usersService.deleteById(id);
+    
+    await this.logsService.createLog(adminId, 'DELETE_USER', `Admin deleted user: ${userToDelete?.email || id}`, id);
   }
 }
