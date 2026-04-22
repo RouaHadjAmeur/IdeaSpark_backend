@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,11 +44,49 @@ export interface DashboardAlertContext {
 @Injectable()
 export class DashboardAlertsService {
     private readonly logger = new Logger(DashboardAlertsService.name);
-    private readonly genAI: GoogleGenerativeAI;
+    private readonly primaryModel = 'Qwen/Qwen2.5-72B-Instruct';
+    private readonly fallbackModel = 'Qwen/Qwen2.5-7B-Instruct';
+    private readonly apiKey: string;
 
     constructor(private readonly config: ConfigService) {
-        const apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
-        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.apiKey = this.config.get<string>('HUGGING_FACE_API_KEY') || '';
+        if (!this.apiKey) {
+            this.logger.warn('HUGGING_FACE_API_KEY is not configured. AI Dashboard alerts will use deterministic fallback.');
+        }
+    }
+
+    private async callHuggingFace(model: string, prompt: string): Promise<string> {
+        if (!this.apiKey) {
+            throw new Error('Hugging Face API key missing');
+        }
+
+        try {
+            const response = await axios.post(
+                'https://router.huggingface.co/novita/v3/openai/chat/completions',
+                {
+                    model,
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 1024,
+                    temperature: 0.7,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 30000,
+                }
+            );
+
+            const content = response.data?.choices?.[0]?.message?.content;
+            if (content) return content;
+            throw new Error(`Unexpected response structure from HF: ${JSON.stringify(response.data)}`);
+        } catch (error) {
+            const status = error.response?.status;
+            const errorMsg = error.response?.data?.error || error.message;
+            this.logger.error(`Error calling Hugging Face model ${model}: [${status}] ${errorMsg}`);
+            throw error;
+        }
     }
 
     async generateAlerts(ctx: DashboardAlertContext): Promise<DashboardAlert[]> {
@@ -108,12 +146,17 @@ Generate 2–5 concise, actionable alerts. Rules:
 Respond ONLY with valid JSON — no markdown, no explanation:
 [{"type":"missed|upcoming|health|info","severity":"critical|warning|info","message":"..."}]`;
 
-        // ── 3. Call Gemini ─────────────────────────────────────────────────────
+        // ── 3. Call AI ─────────────────────────────────────────────────────
         try {
-            const modelName = this.config.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash-exp';
-            const model = this.genAI.getGenerativeModel({ model: modelName });
-            const result = await model.generateContent(prompt);
-            const raw = result.response.text().trim();
+            let raw = '';
+            try {
+                raw = await this.callHuggingFace(this.primaryModel, prompt);
+            } catch (err) {
+                this.logger.warn('Primary model failed for dashboard alerts, trying fallback...');
+                raw = await this.callHuggingFace(this.fallbackModel, prompt);
+            }
+
+            raw = raw.trim();
 
             // Strip markdown code fences if present
             const json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
@@ -122,7 +165,7 @@ Respond ONLY with valid JSON — no markdown, no explanation:
             if (!Array.isArray(parsed)) throw new Error('Not an array');
             return parsed.slice(0, 5); // cap at 5
         } catch (err) {
-            this.logger.warn(`Gemini dashboard alerts failed, using fallback. ${err}`);
+            this.logger.warn(`AI dashboard alerts failed, using deterministic fallback. ${err.message}`);
             return this._fallback(missed, upcoming, ctx);
         }
     }

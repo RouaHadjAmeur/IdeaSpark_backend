@@ -2,6 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 
+export enum UserRole {
+    BRAND_OWNER = 'brand_owner',
+    COLLABORATOR = 'collaborator',
+}
+
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
@@ -49,13 +54,35 @@ export class User {
     @Prop({ type: [String], default: [] })
     skills?: string[];
 
-    @ApiProperty({ description: 'User functional role', required: false })
-    @Prop()
-    role?: string;
+    @ApiProperty({ description: 'User functional role', enum: UserRole, default: UserRole.BRAND_OWNER })
+    @Prop({ type: String, enum: Object.values(UserRole), default: UserRole.BRAND_OWNER })
+    role: UserRole;
 
     @ApiProperty({ description: 'User professional interests', required: false })
     @Prop({ type: [String], default: [] })
     interests?: string[];
+
+    @ApiProperty({ description: 'Collaborator rating', required: false })
+    @Prop({ default: 0 })
+    rating?: number;
+
+    @ApiProperty({ description: 'Collaborator reliability score', required: false })
+    @Prop({ default: 0 })
+    reliabilityScore?: number;
+
+    @ApiProperty({ description: 'Collaborator portfolio links', required: false })
+    @Prop({ type: [String], default: [] })
+    portfolio?: string[];
+
+    @ApiProperty({ description: 'Upgraded Stripe Account user status', required: false })
+    @Prop({ default: false })
+    isPremium?: boolean;
+
+    @Prop({ select: false })
+    stripeSubscriptionId?: string;
+
+    @Prop({ select: false })
+    stripeCustomerId?: string;
 
     /** Account status: pending until email is verified, then active. */
     @Prop({ default: 'active' })

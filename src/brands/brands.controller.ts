@@ -112,4 +112,57 @@ export class BrandsController {
     remove(@Param('id') id: string, @CurrentUser() user: User) {
         return this.brandsService.remove(id, this.resolveUserId(user));
     }
+
+    // ─── Brand Collaboration ──────────────────────────────────────────────────────
+
+    @Post(':brandId/collaborators/invite')
+    @ApiOperation({ summary: 'Invite a user to collaborate on this brand' })
+    inviteCollaborator(
+        @Param('brandId') brandId: string,
+        @Body('inviteeId') inviteeId: string,
+        @CurrentUser() user: User,
+    ) {
+        return this.brandsService.inviteCollaborator(brandId, inviteeId, this.resolveUserId(user));
+    }
+
+    @Get(':brandId/collaborators')
+    @ApiOperation({ summary: 'List collaborators of a brand (owner only)' })
+    listCollaborators(@Param('brandId') brandId: string, @CurrentUser() user: User) {
+        return this.brandsService.listBrandCollaborators(brandId, this.resolveUserId(user));
+    }
+
+    @Delete(':brandId/collaborators/:userId')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiOperation({ summary: 'Remove a collaborator from a brand' })
+    removeCollaborator(
+        @Param('brandId') brandId: string,
+        @Param('userId') userId: string,
+        @CurrentUser() user: User,
+    ) {
+        return this.brandsService.removeBrandCollaborator(brandId, userId, this.resolveUserId(user));
+    }
+
+    @Post('invitations/:id/accept')
+    @ApiOperation({ summary: 'Accept a brand collaboration invitation' })
+    acceptInvitation(@Param('id') id: string, @CurrentUser() user: User) {
+        return this.brandsService.acceptBrandInvitation(id, this.resolveUserId(user));
+    }
+
+    @Post('invitations/:id/decline')
+    @ApiOperation({ summary: 'Decline a brand collaboration invitation' })
+    declineInvitation(@Param('id') id: string, @CurrentUser() user: User) {
+        return this.brandsService.declineBrandInvitation(id, this.resolveUserId(user));
+    }
+
+    @Get('my/collaborations')
+    @ApiOperation({ summary: 'Get brands where the current user is a collaborator' })
+    myCollaborations(@CurrentUser() user: User) {
+        return this.brandsService.getMyBrandCollaborations(this.resolveUserId(user));
+    }
+
+    @Get('my/pending-invitations')
+    @ApiOperation({ summary: 'Get pending brand collaboration invitations for current user' })
+    myPendingInvitations(@CurrentUser() user: User) {
+        return this.brandsService.getMyPendingBrandInvitations(this.resolveUserId(user));
+    }
 }

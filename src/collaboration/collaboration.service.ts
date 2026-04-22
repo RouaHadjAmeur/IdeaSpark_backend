@@ -17,7 +17,11 @@ import {
 import { ProjectCollaborator, ProjectCollaboratorDocument } from './schemas/project-collaborator.schema';
 import { ProjectActivity, ProjectActivityDocument } from './schemas/project-activity.schema';
 import { Notification, NotificationDocument } from './schemas/notification.schema';
+import { Task, TaskDocument, TaskStatus } from './schemas/task.schema';
+import { Deliverable, DeliverableDocument, DeliverableStatus } from './schemas/deliverable.schema';
 import { PlansService } from '../plans/plans.service';
+import { UsersService } from '../users/users.service';
+import { CollaborationGateway } from './gateways/collaboration.gateway';
 
 @Injectable()
 export class CollaborationService {
@@ -30,8 +34,15 @@ export class CollaborationService {
         private activityModel: Model<ProjectActivityDocument>,
         @InjectModel(Notification.name)
         private notificationModel: Model<NotificationDocument>,
+        @InjectModel(Task.name)
+        private taskModel: Model<TaskDocument>,
+        @InjectModel(Deliverable.name)
+        private deliverableModel: Model<DeliverableDocument>,
         @Inject(forwardRef(() => PlansService))
         private plansService: PlansService,
+        @Inject(forwardRef(() => UsersService))
+        private usersService: UsersService,
+        private collaborationGateway: CollaborationGateway,
     ) { }
 
     // ─── Assert Access ────────────────────────────────────────────────────────────
@@ -59,6 +70,16 @@ export class CollaborationService {
         return collabs.map(c => c.planId.toString());
     }
 
+    async getMyCollaborationPlans(userId: string) {
+        console.log('[getMyCollaborationPlans] userId:', userId);
+        const allCollabs = await this.collaboratorModel.find({}).select('userId planId').lean().exec();
+        console.log('[getMyCollaborationPlans] all collaborators in DB:', JSON.stringify(allCollabs));
+        const planIds = await this.getCollaboratorPlanIds(userId);
+        console.log('[getMyCollaborationPlans] planIds for user:', planIds);
+        if (planIds.length === 0) return [];
+        return this.plansService.findMany(planIds);
+    }
+
     async getSharedPlans(userId1: string, userId2: string) {
         if (!Types.ObjectId.isValid(userId1) || !Types.ObjectId.isValid(userId2)) return [];
 
@@ -83,6 +104,11 @@ export class CollaborationService {
 
     // ─── Invitations ──────────────────────────────────────────────────────────────
     async inviteCollaborator(planId: string, inviterId: string, inviteeId: string, role: string = 'collaborator') {
+        const inviterOptions = await this.usersService.findById(inviterId);
+        if (!inviterOptions || !inviterOptions.isPremium) {
+            throw new ForbiddenException('Only upgraded Brand Owner accounts can invite collaborators.');
+        }
+
         // Validate all IDs before touching ObjectId constructor
         if (!planId || !Types.ObjectId.isValid(planId))
             throw new BadRequestException('Invalid planId');
@@ -121,15 +147,29 @@ export class CollaborationService {
         });
 
         // Create notification
-        await this.notificationModel.create({
+        const notification = await this.notificationModel.create({
             userId: new Types.ObjectId(inviteeId),
             type: 'invite_received',
             message: `You have been invited to collaborate on a project.`,
             relatedPlanId: new Types.ObjectId(planId),
             relatedUserId: new Types.ObjectId(inviterId),
+            relatedInvitationId: invitation._id,
         });
 
+        // Emit real-time notification
+        this.collaborationGateway.emitNotification(inviteeId, notification.toObject());
+
         return invitation;
+    }
+
+    async acceptInvitationByPlan(planId: string, userId: string) {
+        const invitation = await this.invitationModel.findOne({
+            planId: new Types.ObjectId(planId),
+            inviteeId: new Types.ObjectId(userId),
+            status: InvitationStatus.PENDING,
+        });
+        if (!invitation) throw new NotFoundException('No pending invitation found for this plan');
+        return this.acceptInvitation(invitation._id.toString(), userId);
     }
 
     async acceptInvitation(invitationId: string, userId: string) {
@@ -157,13 +197,16 @@ export class CollaborationService {
         );
 
         // Notify inviter
-        await this.notificationModel.create({
+        const notification = await this.notificationModel.create({
             userId: invitation.inviterId,
             type: 'invite_accepted',
             message: `Your invitation has been accepted.`,
             relatedPlanId: invitation.planId,
             relatedUserId: new Types.ObjectId(userId),
         });
+
+        // Emit real-time notification
+        this.collaborationGateway.emitNotification(invitation.inviterId.toString(), notification.toObject());
 
         return collaborator;
     }
@@ -177,7 +220,7 @@ export class CollaborationService {
         await invitation.save();
 
         // Notify inviter
-        await this.notificationModel.create({
+        const notification = await this.notificationModel.create({
             userId: invitation.inviterId,
             type: 'invite_declined',
             message: `Your invitation was declined.`,
@@ -185,13 +228,45 @@ export class CollaborationService {
             relatedUserId: new Types.ObjectId(userId),
         });
 
+        // Emit real-time notification
+        this.collaborationGateway.emitNotification(invitation.inviterId.toString(), notification.toObject());
+
         return { success: true };
     }
 
     // ─── Manage Collaborators ───────────────────────────────────────────────────
     async getCollaborators(planId: string, userId: string) {
         await this.assertAccess(planId, userId);
-        return this.collaboratorModel.find({ planId: new Types.ObjectId(planId) }).populate('userId', 'name email profile_img username role').exec();
+        // Get all collaborators
+        const collaborators = await this.collaboratorModel
+            .find({ planId: new Types.ObjectId(planId) })
+            .populate('userId', 'name email profile_img username role')
+            .exec();
+        // Also include the plan owner so the member list is complete
+        const plan = await this.plansService.findOne(planId, userId, true).catch(() =>
+            this.plansService.findOne(planId, (collaborators[0]?.userId as any)?._id?.toString() ?? userId, true).catch(() => null)
+        );
+        const ownerUser = plan ? await this.usersService.findById(plan.userId.toString()).catch(() => null) : null;
+        const collaboratorUserIds = new Set(collaborators.map(c => (c.userId as any)?._id?.toString()));
+        const result: any[] = [];
+        if (ownerUser && !collaboratorUserIds.has(ownerUser.id?.toString() ?? ownerUser._id?.toString())) {
+            result.push({
+                _id: ownerUser.id ?? ownerUser._id,
+                userId: {
+                    _id: ownerUser.id ?? ownerUser._id,
+                    name: ownerUser.name,
+                    email: ownerUser.email,
+                    profile_img: ownerUser.profile_img,
+                    username: ownerUser.username,
+                    role: 'brand_owner',
+                },
+                planId,
+                role: 'admin',
+                isOwner: true,
+            });
+        }
+        result.push(...collaborators);
+        return result;
     }
 
     async removeCollaborator(planId: string, ownerId: string, userIdToRemove: string) {
@@ -204,12 +279,14 @@ export class CollaborationService {
         });
 
         if (removed) {
-            await this.notificationModel.create({
+            const notification = await this.notificationModel.create({
                 userId: new Types.ObjectId(userIdToRemove),
                 type: 'collaborator_removed',
                 message: `You were removed from the project.`,
                 relatedPlanId: new Types.ObjectId(planId),
             });
+            // Emit real-time notification
+            this.collaborationGateway.emitNotification(userIdToRemove, notification.toObject());
             await this.logActivity(
                 planId,
                 ownerId,
@@ -225,10 +302,21 @@ export class CollaborationService {
 
     // ─── Activity Log ───────────────────────────────────────────────────────────
     async logActivity(planId: string, userId: string, userName: string, actionType: string, fieldChanged?: string, oldValue?: string, newValue?: string) {
+        if (!Types.ObjectId.isValid(planId) || !Types.ObjectId.isValid(userId)) {
+            return; // Skip logging if IDs are not valid ObjectIds
+        }
+        // Always resolve the real user name from DB, ignore the passed-in placeholder
+        let resolvedName = userName;
+        try {
+            const user = await this.usersService.findById(userId);
+            if (user) {
+                resolvedName = user.username || user.name || user.email || userName;
+            }
+        } catch (_) { /* keep fallback */ }
         return this.activityModel.create({
             planId: new Types.ObjectId(planId),
             userId: new Types.ObjectId(userId),
-            userName,
+            userName: resolvedName,
             actionType,
             fieldChanged,
             oldValue,
@@ -243,7 +331,13 @@ export class CollaborationService {
 
     // ─── Notifications ──────────────────────────────────────────────────────────
     async getNotifications(userId: string) {
-        return this.notificationModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(20).populate('relatedUserId', 'name profile_img username').exec();
+        return this.notificationModel
+            .find({ userId: new Types.ObjectId(userId) })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .populate('relatedUserId', 'name profile_img username')
+            .populate('relatedPlanId', 'name objective brandId startDate endDate platforms durationWeeks')
+            .exec();
     }
 
     async markNotificationRead(notificationId: string, userId: string) {
@@ -252,5 +346,117 @@ export class CollaborationService {
             { $set: { read: true } },
             { new: true }
         ).exec();
+    }
+
+    // ─── Tasks ──────────────────────────────────────────────────────────────────
+    async createTask(planId: string, userId: string, data: Partial<Task>) {
+        await this.assertAccess(planId, userId);
+        const task = await this.taskModel.create({
+            ...data,
+            planId: new Types.ObjectId(planId),
+            status: TaskStatus.TODO,
+        });
+
+        await this.logActivity(planId, userId, 'User', 'create', 'task', undefined, task.title);
+
+        if (data.assignedTo) {
+            const notification = await this.notificationModel.create({
+                userId: data.assignedTo,
+                type: 'task_assigned',
+                message: `You have been assigned a new task: ${task.title}`,
+                relatedPlanId: new Types.ObjectId(planId),
+            });
+            // Emit real-time notification
+            this.collaborationGateway.emitNotification(data.assignedTo.toString(), notification.toObject());
+        }
+
+        return task;
+    }
+
+    async getTasks(planId: string, userId: string) {
+        await this.assertAccess(planId, userId);
+        return this.taskModel.find({ planId: new Types.ObjectId(planId) }).populate('assignedTo', 'name profile_img').exec();
+    }
+
+    async updateTask(taskId: string, userId: string, update: Partial<Task>) {
+        const task = await this.taskModel.findById(taskId);
+        if (!task) throw new NotFoundException('Task not found');
+        await this.assertAccess(task.planId.toString(), userId);
+
+        const oldStatus = task.status;
+        Object.assign(task, update);
+        await task.save();
+
+        if (update.status && update.status !== oldStatus) {
+            await this.logActivity(task.planId.toString(), userId, 'User', 'update', 'task_status', oldStatus, update.status);
+            
+            // If done, update project progress? Later in AI service.
+        }
+
+        return task;
+    }
+
+    // ─── Deliverables ───────────────────────────────────────────────────────────
+    async submitDeliverable(taskId: string, userId: string, data: { fileUrl?: string; textContent?: string }) {
+        const task = await this.taskModel.findById(taskId);
+        if (!task) throw new NotFoundException('Task not found');
+        await this.assertAccess(task.planId.toString(), userId);
+
+        // Check if user is assigned to this task? (Strict permission)
+        // if (task.assignedTo?.toString() !== userId) throw new ForbiddenException('You are not assigned to this task');
+
+        const deliverable = await this.deliverableModel.create({
+            ...data,
+            taskId: task._id,
+            planId: task.planId,
+            userId: new Types.ObjectId(userId),
+            status: DeliverableStatus.SUBMITTED,
+        });
+
+        task.deliverableId = deliverable._id as Types.ObjectId;
+        task.status = TaskStatus.DONE; // Auto-mark as done upon submission? Or keep IN_PROGRESS?
+        await task.save();
+
+        await this.logActivity(task.planId.toString(), userId, 'User', 'submit', 'deliverable', undefined, task.title);
+
+        // Notify Plan Owner
+        const plan = await this.plansService.findOne(task.planId.toString(), userId, true);
+        const notification = await this.notificationModel.create({
+            userId: plan.userId,
+            type: 'deliverable_submitted',
+            message: `A deliverable has been submitted for task: ${task.title}`,
+            relatedPlanId: task.planId,
+        });
+        // Emit real-time notification
+        this.collaborationGateway.emitNotification(plan.userId.toString(), notification.toObject());
+
+        return deliverable;
+    }
+
+    async reviewDeliverable(deliverableId: string, userId: string, status: DeliverableStatus, feedback?: string) {
+        const deliverable = await this.deliverableModel.findById(deliverableId);
+        if (!deliverable) throw new NotFoundException('Deliverable not found');
+        
+        // Only owner can review
+        const plan = await this.plansService.findOne(deliverable.planId.toString(), userId);
+        if (!plan) throw new ForbiddenException('Only the plan owner can review deliverables');
+
+        deliverable.status = status;
+        deliverable.feedback = feedback;
+        await deliverable.save();
+
+        await this.logActivity(deliverable.planId.toString(), userId, 'Owner', 'review', 'deliverable', undefined, status);
+
+        // Notify collaborator
+        const notification = await this.notificationModel.create({
+            userId: deliverable.userId,
+            type: 'deliverable_reviewed',
+            message: `Your deliverable has been ${status}.`,
+            relatedPlanId: deliverable.planId,
+        });
+        // Emit real-time notification
+        this.collaborationGateway.emitNotification(deliverable.userId.toString(), notification.toObject());
+
+        return deliverable;
     }
 }

@@ -230,6 +230,18 @@ export class ContentBlocksService {
         return target.save();
     }
 
+    // ─── Update Checklist ─────────────────────────────────────────────────────
+
+    async updateChecklist(
+        id: string,
+        checklist: Record<string, boolean>,
+        userId: string,
+    ): Promise<ContentBlockDocument> {
+        const block = await this.findOne(id, userId);
+        block.set('productionChecklist', checklist);
+        return block.save();
+    }
+
     // ─── Delete ───────────────────────────────────────────────────────────────
 
     async remove(id: string, userId: string): Promise<void> {

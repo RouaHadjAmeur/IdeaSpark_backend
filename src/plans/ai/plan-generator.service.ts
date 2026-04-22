@@ -86,7 +86,7 @@ export class PlanGeneratorService {
         const prompt = this.buildPrompt(plan, brand);
         const schema  = this.buildResponseSchema();
 
-        this.logger.log(`Generating plan structure for planId=${(plan as any)._id ?? (plan as any).id}, brand="${brand.name}" using ${this.modelName}`);
+        this.logger.log(`Generating plan structure for planId=${(plan as any)._id ?? (plan as any).id}, brand="${brand.name}", model=${this.modelName}, weeks=${plan.durationWeeks}, postsPerWeek=${plan.postingFrequency}`);
 
         const model = this.genAI.getGenerativeModel({
             model: this.modelName,
@@ -97,15 +97,22 @@ export class PlanGeneratorService {
         });
 
         try {
-            const result   = await model.generateContent(prompt);
+            const timeoutMs = 90_000;
+            const generatePromise = model.generateContent(prompt);
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`Gemini timed out after ${timeoutMs / 1000}s`)), timeoutMs),
+            );
+
+            const result = await Promise.race([generatePromise, timeoutPromise]) as Awaited<typeof generatePromise>;
             const raw      = result.response.text();
+            this.logger.log(`Gemini raw response length: ${raw.length} chars`);
             const parsed   = JSON.parse(raw) as AIPlanStructure;
 
             this.validate(parsed, plan);
             return parsed;
         } catch (err) {
-            this.logger.error('Gemini generation failed', err);
-            throw new InternalServerErrorException('AI plan generation failed. Please try again.');
+            this.logger.error(`Gemini generation failed (model=${this.modelName}): ${err.message}`);
+            throw new InternalServerErrorException(`AI plan generation failed: ${err.message}`);
         }
     }
 

@@ -1,17 +1,21 @@
-import { Controller, Patch, Get, Delete, Body, Param, Query, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Patch, Get, Delete, Body, Param, Query, UseGuards, HttpStatus, HttpCode, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from './schemas/user.schema';
+import { StripeService } from '../stripe/stripe.service';
 
 @ApiTags('Users')
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly stripeService: StripeService,
+  ) {}
 
   @Get('profile')
   @ApiOperation({
@@ -78,6 +82,52 @@ export class UsersController {
   ) {
     const userId = user._id || user.id;
     return this.usersService.updateUser(userId.toString(), updateProfileDto);
+  }
+
+  @Post('upgrade')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mock Upgrade Account to Premium',
+    description: 'Simulates a successful Stripe Checkout Session by immediately upgrading the user account.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully upgraded to Premium Brand Owner.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async upgradeToPremium(@CurrentUser() user: any) {
+    const userId = user._id || user.id;
+    return this.usersService.updateUser(userId.toString(), { isPremium: true });
+  }
+
+  @Post('confirm-subscription')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Confirm Stripe payment and activate Premium',
+    description:
+      'Verifies that the Stripe PaymentIntent succeeded on the server, then sets isPremium = true. ' +
+      'This is the secure alternative to the mock /upgrade endpoint.',
+  })
+  @ApiBody({
+    schema: {
+      example: { paymentIntentId: 'pi_xxx' },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Premium activated successfully.' })
+  @ApiResponse({ status: 400, description: 'Payment not confirmed by Stripe.' })
+  async confirmSubscription(
+    @CurrentUser() user: any,
+    @Body('paymentIntentId') paymentIntentId: string,
+  ) {
+    const succeeded = await this.stripeService.verifyPaymentSucceeded(paymentIntentId);
+    if (!succeeded) {
+      throw new BadRequestException('Payment has not been confirmed by Stripe.');
+    }
+    const userId = user._id || user.id;
+    return this.usersService.updateUser(userId.toString(), { isPremium: true });
   }
 
   @Get()

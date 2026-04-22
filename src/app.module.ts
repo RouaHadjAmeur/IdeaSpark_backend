@@ -26,6 +26,8 @@ import { PlanCollaborationModule } from './plan-collaboration/plan-collaboration
 import { CaptionGeneratorModule } from './caption-generator/caption-generator.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
+import { StripeModule } from './stripe/stripe.module';
+import { ChallengesModule } from './challenges/challenges.module';
 
 @Module({
   imports: [
@@ -64,6 +66,8 @@ import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
     CaptionGeneratorModule,
     NotificationsModule,
     PlanTemplatesModule,
+    StripeModule,
+    ChallengesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

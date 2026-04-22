@@ -11,6 +11,7 @@ import {
     Max,
     MaxLength,
     ValidateNested,
+    IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -97,4 +98,18 @@ export class CreatePlanDto {
     @Type(() => ContentMixDto)
     @IsOptional()
     contentMixPreference?: ContentMixDto;
+
+    @ApiPropertyOptional()
+    @IsString()
+    @IsOptional()
+    notes?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    notesSeen?: boolean;
+
+    @ApiPropertyOptional()
+    @IsString()
+    @IsOptional()
+    lastNoteAuthorId?: string;
 }

@@ -11,18 +11,25 @@ import { CalendarEntry, CalendarEntrySchema } from './schemas/calendar-entry.sch
 
 import { BrandsModule } from '../brands/brands.module';
 import { CollaborationModule } from '../collaboration/collaboration.module';
+import { UsersModule } from '../users/users.module';
+import { AIProjectService } from './ai/ai-project.service';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { Task, TaskSchema } from '../collaboration/schemas/task.schema';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: Plan.name,          schema: PlanSchema },
             { name: CalendarEntry.name, schema: CalendarEntrySchema },
+            { name: User.name,          schema: UserSchema },
+            { name: Task.name,          schema: TaskSchema },
         ]),
-        BrandsModule, // provides @InjectModel(Brand.name) without re-registering
+        BrandsModule, 
+        UsersModule,
         forwardRef(() => CollaborationModule),
     ],
     controllers: [PlansController],
-    providers: [PlansService, PlanGeneratorService, DashboardAlertsService],
+    providers: [PlansService, PlanGeneratorService, DashboardAlertsService, AIProjectService],
     exports: [PlansService, MongooseModule],
 })
 export class PlansModule {}

@@ -28,6 +28,6 @@ import { FacebookOAuthStrategy } from './strategies/facebook-oauth.strategy';
     ],
     controllers: [AuthController],
     providers: [AuthService, LocalStrategy, JwtStrategy, Auth0Strategy, GoogleOAuthStrategy, FacebookOAuthStrategy],
-    exports: [AuthService],
+    exports: [AuthService, JwtModule],
 })
 export class AuthModule { }

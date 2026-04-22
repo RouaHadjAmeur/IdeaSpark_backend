@@ -25,6 +25,8 @@ import { UpdateCampaignCopyDto } from './dto/update-campaign-copy.dto';
 import { PlanGeneratorService, BrandContext } from './ai/plan-generator.service';
 import { CtaType } from './schemas/plan.schema';
 import { CollaborationService } from '../collaboration/collaboration.service';
+import { AIProjectService } from './ai/ai-project.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PlansService {
@@ -41,15 +43,18 @@ export class PlansService {
         private readonly brandModel: Model<BrandDocument>,
 
         private readonly planGenerator: PlanGeneratorService,
-
+        private readonly aiProjectService: AIProjectService,
         @Inject(forwardRef(() => CollaborationService))
         private readonly collaborationService: CollaborationService,
+        private readonly usersService: UsersService,
     ) { }
 
     // ─── createPlan ──────────────────────────────────────────────────────────────
 
-    async createPlan(dto: CreatePlanDto, userId: string, brandId: string): Promise<PlanDocument> {
-        await this.assertBrandOwnership(brandId, userId);
+    async createPlan(dto: CreatePlanDto, userId: string, brandId?: string): Promise<PlanDocument> {
+        if (brandId) {
+            await this.assertBrandOwnership(brandId, userId);
+        }
 
         const startDate = new Date(dto.startDate);
         const endDate = new Date(startDate);
@@ -170,9 +175,13 @@ export class PlansService {
 
     async generatePlanStructure(planId: string, userId: string): Promise<PlanDocument> {
         const plan = await this.findOne(planId, userId);
-        const brand = await this.assertBrandOwnership(plan.brandId, userId);
+        let brandContext: any = { name: 'General Brand', tone: 'Professional', contentPillars: ['Educational', 'Promotional'] };
+        
+        if (plan.brandId) {
+            const brand = await this.assertBrandOwnership(plan.brandId, userId);
+            brandContext = this.toBrandContext(brand);
+        }
 
-        const brandContext = this.toBrandContext(brand);
         const structure = await this.planGenerator.generate(plan, brandContext);
 
         // Build embedded phases + content blocks from AI output
@@ -227,7 +236,12 @@ export class PlansService {
 
     async convertPlanToCalendar(planId: string, userId: string): Promise<CalendarEntryDocument[]> {
         const plan = await this.findOne(planId, userId);
-        const brand = await this.assertBrandOwnership(plan.brandId, userId);
+        let rotation = { maxConsecutivePromoPosts: 2, minGapBetweenPromotions: 3 };
+
+        if (plan.brandId) {
+            const brand = await this.assertBrandOwnership(plan.brandId, userId);
+            rotation = brand.smartRotation ?? rotation;
+        }
 
         if (!plan.phases?.length) {
             throw new BadRequestException('Generate plan structure first');
@@ -239,7 +253,6 @@ export class PlansService {
         // Remove previous calendar entries for this plan
         await this.calendarModel.deleteMany({ planId }).exec();
 
-        const rotation = brand.smartRotation ?? { maxConsecutivePromoPosts: 2, minGapBetweenPromotions: 3 };
         const startDate = new Date(plan.startDate);
 
         // Gather all blocks ordered by week then day offset
@@ -369,6 +382,55 @@ export class PlansService {
             .find({ planId })
             .sort({ scheduledDate: 1, scheduledTime: 1 })
             .exec();
+    }
+
+    // ─── Project DNA ────────────────────────────────────────────────────────────
+    async updateProjectDNA(planId: string, userId: string, update: any) {
+        // Ownership check is handled by findOne
+        const plan = await this.findOne(planId, userId);
+        
+        // Deep merge or specific path updates
+        const updated = await this.planModel.findOneAndUpdate(
+            { _id: planId },
+            { $set: { projectDNA: { ...plan.projectDNA, ...update } } },
+            { new: true }
+        ).exec();
+
+        await this.collaborationService.logActivity(planId, userId, 'User', 'update', 'project_dna');
+        
+        return updated;
+    }
+
+    async getAIInsights(planId: string, userId: string) {
+        const user = await this.usersService.findById(userId);
+        if (!user || !user.isPremium) {
+            throw new ForbiddenException('Only upgraded Brand Owner accounts can view AI Insights / DNA.');
+        }
+
+        await this.findOne(planId, userId);
+        
+        const [readinessScore, weakPoints, suggestions] = await Promise.all([
+            this.aiProjectService.calculateReadinessScore(planId),
+            this.aiProjectService.detectWeakPoints(planId),
+            this.aiProjectService.suggestCollaborators(planId)
+        ]);
+
+        // Update plan with new score/points
+        await this.planModel.updateOne(
+            { _id: planId },
+            { 
+                $set: { 
+                    'projectDNA.performance.readinessScore': readinessScore,
+                    'projectDNA.performance.weakPoints': weakPoints 
+                } 
+            }
+        ).exec();
+
+        return {
+            readinessScore,
+            weakPoints,
+            suggestedCollaborators: suggestions
+        };
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────────

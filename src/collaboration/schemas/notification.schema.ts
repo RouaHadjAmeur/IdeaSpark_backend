@@ -20,6 +20,9 @@ export class Notification {
     @Prop({ type: Types.ObjectId, ref: 'User' })
     relatedUserId?: Types.ObjectId;
 
+    @Prop({ type: Types.ObjectId, ref: 'CollaborationInvitation' })
+    relatedInvitationId?: Types.ObjectId;
+
     @Prop({ default: false })
     read: boolean;
 }

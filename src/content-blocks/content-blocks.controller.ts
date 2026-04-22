@@ -147,6 +147,20 @@ export class ContentBlocksController {
         return this.svc.replace(id, dto, userId);
     }
 
+    // ─── PATCH /content-blocks/:id/checklist ─────────────────────────────────
+
+    @Patch(':id/checklist')
+    @ApiOperation({ summary: 'Update production checklist for a ContentBlock' })
+    @ApiResponse({ status: 200 })
+    updateChecklist(
+        @Request() req,
+        @Param('id') id: string,
+        @Body() body: { productionChecklist: Record<string, boolean> },
+    ) {
+        const userId = (req.user && (req.user.userId || req.user._id)?.toString()) || 'anonymous';
+        return this.svc.updateChecklist(id, body.productionChecklist, userId);
+    }
+
     // ─── DELETE /content-blocks/:id ───────────────────────────────────────────
 
     @Delete(':id')

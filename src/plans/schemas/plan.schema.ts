@@ -109,6 +109,94 @@ export class Phase {
 
 const PhaseSchema = SchemaFactory.createForClass(Phase);
 
+// ─── Project DNA subdocuments ──────────────────────────────────────────────────
+
+@Schema({ _id: false })
+export class StrategicDNA {
+    @Prop({ default: '' })
+    vision: string;
+
+    @Prop({ type: [String], default: [] })
+    targetAudience: string[];
+
+    @Prop({ default: '' })
+    offer: string;
+
+    @Prop({ default: '' })
+    positioning: string;
+
+    @Prop({ default: '' })
+    campaignAngle: string;
+
+    @Prop({ type: [String], default: [] })
+    kpis: string[];
+}
+
+@Schema({ _id: false })
+export class ExecutionDNA {
+    @Prop({ default: 0 })
+    progressPercentage: number;
+
+    @Prop({ type: [Types.ObjectId], ref: 'Task', default: [] })
+    taskIds: Types.ObjectId[];
+
+    @Prop()
+    overallDeadline?: Date;
+}
+
+@Schema({ _id: false })
+export class ResourceDNA {
+    @Prop({ type: [Object], default: [] })
+    assets: Array<{ type: string; url: string; label: string }>;
+
+    @Prop({ type: [String], default: [] })
+    landingPages: string[];
+
+    @Prop({ type: [String], default: [] })
+    references: string[];
+}
+
+@Schema({ _id: false })
+export class SkillDNA {
+    @Prop({ type: [String], default: [] })
+    requiredRoles: string[];
+
+    @Prop({ type: [String], default: [] })
+    missingRoles: string[];
+}
+
+@Schema({ _id: false })
+export class PerformanceDNA {
+    @Prop({ default: 0 })
+    readinessScore: number;
+
+    @Prop({ type: [String], default: [] })
+    weakPoints: string[];
+
+    @Prop({ type: [String], default: [] })
+    blockers: string[];
+}
+
+@Schema({ _id: false })
+export class ProjectDNA {
+    @Prop({ type: StrategicDNA, default: () => ({}) })
+    strategic: StrategicDNA;
+
+    @Prop({ type: ExecutionDNA, default: () => ({}) })
+    execution: ExecutionDNA;
+
+    @Prop({ type: ResourceDNA, default: () => ({}) })
+    resource: ResourceDNA;
+
+    @Prop({ type: SkillDNA, default: () => ({}) })
+    skill: SkillDNA;
+
+    @Prop({ type: PerformanceDNA, default: () => ({}) })
+    performance: PerformanceDNA;
+}
+
+const ProjectDNASchema = SchemaFactory.createForClass(ProjectDNA);
+
 // ─── Plan document ─────────────────────────────────────────────────────────────
 
 export type PlanDocument = Plan & Document;
@@ -118,8 +206,8 @@ export class Plan {
     @Prop({ required: true })
     userId: string;
 
-    @Prop({ required: true })
-    brandId: string;
+    @Prop({ required: false })
+    brandId?: string;
 
     @Prop({ required: true, maxlength: 200 })
     name: string;
@@ -160,12 +248,23 @@ export class Plan {
     @Prop({ type: [PhaseSchema], default: [] })
     phases: Phase[];
 
-    // ─ Campaign copy (set via PATCH /plans/:id/campaign-copy) ─────────────────
+    @Prop({ type: ProjectDNASchema, default: () => ({}) })
+    projectDNA: ProjectDNA;
+
     @Prop({ type: String, default: null })
     campaignSlogan: string | null;
 
     @Prop({ type: String, default: null })
     launchHeadline: string | null;
+
+    @Prop({ type: String, default: '' })
+    notes: string;
+
+    @Prop({ type: Boolean, default: true })
+    notesSeen: boolean;
+
+    @Prop({ type: String, default: null })
+    lastNoteAuthorId: string | null;
 
     createdAt: Date;
     updatedAt: Date;
