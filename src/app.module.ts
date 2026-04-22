@@ -22,6 +22,9 @@ import { IAScratchModule } from './IA_Scratch/ia-scratch.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { SocialModule } from './social/social.module';
 import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
+import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
+import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
+import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
 
 @Module({
   imports: [
@@ -56,6 +59,9 @@ import { IAFinetuningModule } from './ia-finetuning/ia-finetuning.module';
     CollaborationModule,
     SocialModule,
     IAFinetuningModule,
+    YoutubeTrendsModule,
+    YoutubeAuthModule,
+    InstagramAuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

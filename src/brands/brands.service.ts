@@ -31,6 +31,10 @@ export class BrandsService {
             throw new BadRequestException('contentPillars cannot exceed 5 items');
         }
 
+        if (!createBrandDto.platforms || createBrandDto.platforms.length === 0) {
+            throw new BadRequestException('At least one platform is required');
+        }
+
         try {
             const brand = new this.brandModel({ ...createBrandDto, userId });
             return await brand.save();
@@ -40,6 +44,15 @@ export class BrandsService {
                     `A brand named "${createBrandDto.name}" already exists for your account`,
                 );
             }
+            if (error.name === 'ValidationError') {
+                const messages = Object.values(error.errors)
+                    .map((err: any) => err.message)
+                    .join(', ');
+                console.error('[BrandsService] Validation Error:', messages);
+                console.error('[BrandsService] DTO received:', JSON.stringify(createBrandDto, null, 2));
+                throw new BadRequestException(`Validation error: ${messages}`);
+            }
+            console.error('[BrandsService] Unexpected error:', error);
             throw error;
         }
     }
@@ -103,6 +116,12 @@ export class BrandsService {
                 throw new ConflictException(
                     `A brand named "${updateBrandDto.name}" already exists for your account`,
                 );
+            }
+            if (error.name === 'ValidationError') {
+                const messages = Object.values(error.errors)
+                    .map((err: any) => err.message)
+                    .join(', ');
+                throw new BadRequestException(`Validation error: ${messages}`);
             }
             throw error;
         }
