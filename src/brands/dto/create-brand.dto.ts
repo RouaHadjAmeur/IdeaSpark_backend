@@ -143,9 +143,10 @@ export class CreateBrandDto {
     audience?: AudienceDto;
 
     @ApiProperty({ enum: BrandPlatform, isArray: true, example: [BrandPlatform.INSTAGRAM] })
-    @IsArray()
+    @IsArray({ message: 'platforms must be an array' })
     @ArrayMinSize(1, { message: 'At least one platform is required' })
-    @IsEnum(BrandPlatform, { each: true, message: `Each platform must be one of: ${Object.values(BrandPlatform).join(', ')}` })
+    @IsEnum(BrandPlatform, { each: true, message: `platforms must be an array of values: ${Object.values(BrandPlatform).join(', ')}` })
+    @IsNotEmpty({ message: 'platforms is required' })
     platforms: BrandPlatform[];
 
     @ApiPropertyOptional({ example: ['Quality', 'Innovation'], maxItems: 5 })

@@ -1,0 +1,47 @@
+{
+  "name": "YouTube Normalize + Virality",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "sourceLanguage": "javaScript",
+        "javascriptCode": "return {\n  json: {\n    platform: 'youtube',\n    title: $json.snippet?.title || '',\n    views: Number($json.statistics?.viewCount || 0),\n    likes: Number($json.statistics?.likeCount || 0),\n    comments: Number($json.statistics?.commentCount || 0),\n    channel: $json.snippet?.channelTitle || '',\n    thumbnail: $json.snippet?.thumbnails?.maxres?.url || $json.snippet?.thumbnails?.high?.url || $json.snippet?.thumbnails?.default?.url || '',\n    video_url: 'https://www.youtube.com/watch?v=' + ($json.id || ''),\n    published_at: $json.snippet?.publishedAt || '',\n  },\n};"
+      },
+      "id": "normalize-youtube",
+      "name": "Normalize YouTube",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "sourceLanguage": "javaScript",
+        "javascriptCode": "const views = Number($json.views || 0);\nconst likes = Number($json.likes || 0);\nconst comments = Number($json.comments || 0);\n\nconst engagementRate = views > 0 ? ((likes + comments) / views) * 100 : 0;\n\nconst publishedAt = $json.published_at ? new Date($json.published_at) : null;\nconst ageHours = publishedAt ? Math.max((Date.now() - publishedAt.getTime()) / 3600000, 1) : 24;\nconst velocity = views / ageHours;\n\n// 0..100 blended score: 70% engagement + 30% freshness/velocity\nconst viralityScore = Math.min(\n  100,\n  Math.round((engagementRate * 0.7) + (Math.log10(velocity + 1) * 12 * 0.3))\n);\n\nreturn {\n  json: {\n    ...$json,\n    engagement_rate: Number(engagementRate.toFixed(2)),\n    virality_score: viralityScore,\n  },\n};"
+      },
+      "id": "compute-virality",
+      "name": "Compute Virality",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Normalize YouTube": {
+      "main": [
+        [
+          {
+            "node": "Compute Virality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

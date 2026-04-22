@@ -1,0 +1,179 @@
+{
+  "name": "IdeaSpark - Trends (Working)",
+  "nodes": [
+    {
+      "parameters": {
+        "interval": [
+          {
+            "recurrence": "everyHours",
+            "value": 2
+          }
+        ]
+      },
+      "id": "Schedule",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/everything?q=%D8%AA%D9%88%D9%86%D8%B3&language=ar&sortBy=popularity&pageSize=20&apiKey=8e0a1b8c323b4d7081cded16bc12ee10",
+        "method": "GET"
+      },
+      "id": "Tunisia",
+      "name": "Fetch Tunisia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/top-headlines?country=us&sortBy=popularity&pageSize=20&apiKey=8e0a1b8c323b4d7081cded16bc12ee10",
+        "method": "GET"
+      },
+      "id": "Global",
+      "name": "Fetch Global",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "sourceLanguage": "javaScript"
+      },
+      "id": "ExtractTN",
+      "name": "Extract TN Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 200],
+      "credentials": [],
+      "inputs": [{"type": "main"}],
+      "outputs": [{"type": "main"}],
+      "nativeCredentials": []
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "sourceLanguage": "javaScript"
+      },
+      "id": "ExtractGlobal",
+      "name": "Extract Global Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 400],
+      "credentials": [],
+      "inputs": [{"type": "main"}],
+      "outputs": [{"type": "main"}],
+      "nativeCredentials": []
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "sourceLanguage": "javaScript"
+      },
+      "id": "Categorize",
+      "name": "Categorize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 300],
+      "credentials": [],
+      "inputs": [{"type": "main"}],
+      "outputs": [{"type": "main"}],
+      "nativeCredentials": []
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "sourceLanguage": "javaScript"
+      },
+      "id": "Schema",
+      "name": "Map Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300],
+      "credentials": [],
+      "inputs": [{"type": "main"}],
+      "outputs": [{"type": "main"}],
+      "nativeCredentials": []
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "sourceLanguage": "javaScript",
+        "javascriptCode": "const items = $input.all();\n\n// If an upstream node already produced { trends: [...] }, keep it as-is\nif (items.length === 1 && items[0].json && Array.isArray(items[0].json.trends)) {\n  return { json: items[0].json };\n}\n\n// Otherwise collect individual trend items into the payload expected by the backend\nconst trends = items\n  .map((item) => item.json)\n  .filter((trend) => trend && trend.topic);\n\nreturn {\n  json: {\n    trends,\n    count: trends.length,\n    timestamp: new Date().toISOString(),\n  },\n};"
+      },
+      "id": "Batch",
+      "name": "Batch Trends",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "credentials": [],
+      "inputs": [{"type": "main"}],
+      "outputs": [{"type": "main"}],
+      "nativeCredentials": []
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:3000/trends/update?secret=mon_secret_n8n",
+        "method": "POST",
+        "contentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}"
+      },
+      "id": "Send",
+      "name": "Send to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1700, 300]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {"node": "Tunisia", "type": "main", "index": 0},
+          {"node": "Global", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Tunisia": {
+      "main": [
+        [{"node": "ExtractTN", "type": "main", "index": 0}]
+      ]
+    },
+    "Global": {
+      "main": [
+        [{"node": "ExtractGlobal", "type": "main", "index": 0}]
+      ]
+    },
+    "ExtractTN": {
+      "main": [
+        [{"node": "Categorize", "type": "main", "index": 0}]
+      ]
+    },
+    "ExtractGlobal": {
+      "main": [
+        [{"node": "Categorize", "type": "main", "index": 0}]
+      ]
+    },
+    "Categorize": {
+      "main": [
+        [{"node": "Schema", "type": "main", "index": 0}]
+      ]
+    },
+    "Schema": {
+      "main": [
+        [{"node": "Batch", "type": "main", "index": 0}]
+      ]
+    },
+    "Batch": {
+      "main": [
+        [{"node": "Send", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}
+

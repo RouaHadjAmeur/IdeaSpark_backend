@@ -1,0 +1,276 @@
+{
+  "name": "IdeaSpark - Social Media Branches",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ManualTrigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "method": "GET",
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "part",
+              "value": "snippet,statistics"
+            },
+            {
+              "name": "chart",
+              "value": "mostPopular"
+            },
+            {
+              "name": "regionCode",
+              "value": "US"
+            },
+            {
+              "name": "maxResults",
+              "value": "25"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_YOUTUBE_API_KEY"
+            }
+          ]
+        },
+        "responseFormat": "json",
+        "options": {}
+      },
+      "id": "YouTubeFetch",
+      "name": "Fetch YouTube Trending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 120]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "platform",
+              "value": "youtube"
+            },
+            {
+              "name": "video_title",
+              "value": "={{ $json.items?.[0]?.snippet?.title || '' }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ 'https://www.youtube.com/watch?v=' + ($json.items?.[0]?.id || '') }}"
+            },
+            {
+              "name": "channel_title",
+              "value": "={{ $json.items?.[0]?.snippet?.channelTitle || '' }}"
+            },
+            {
+              "name": "published_at",
+              "value": "={{ $json.items?.[0]?.snippet?.publishedAt || '' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "view_count",
+              "value": "={{ Number($json.items?.[0]?.statistics?.viewCount || 0) }}"
+            },
+            {
+              "name": "like_count",
+              "value": "={{ Number($json.items?.[0]?.statistics?.likeCount || 0) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "YouTubeNormalize",
+      "name": "Normalize YouTube",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2.2,
+      "position": [800, 120]
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR_TIKTOK_API_OR_RSS_BRIDGE_ENDPOINT",
+        "method": "GET",
+        "responseFormat": "json",
+        "options": {}
+      },
+      "id": "TikTokFetch",
+      "name": "Fetch TikTok Trends",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 320]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "platform",
+              "value": "tiktok"
+            },
+            {
+              "name": "trend_name",
+              "value": "={{ $json.trend_name || $json.title || $json.name || 'TikTok trend' }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.video_url || $json.url || $json.permalink || '' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "view_count",
+              "value": "={{ Number($json.view_count || $json.views || $json.play_count || 0) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "TikTokNormalize",
+      "name": "Normalize TikTok Trend",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2.2,
+      "position": [800, 320]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v19.0/YOUR_HASHTAG_ID/top_media",
+        "method": "GET",
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "user_id",
+              "value": "YOUR_INSTAGRAM_BUSINESS_ID"
+            },
+            {
+              "name": "fields",
+              "value": "id,media_type,comments_count,like_count,permalink,media_url"
+            },
+            {
+              "name": "access_token",
+              "value": "YOUR_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "responseFormat": "json",
+        "options": {}
+      },
+      "id": "InstagramFetch",
+      "name": "Fetch Instagram Top Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 520]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "platform",
+              "value": "instagram"
+            },
+            {
+              "name": "media_id",
+              "value": "={{ $json.data?.[0]?.id || '' }}"
+            },
+            {
+              "name": "media_type",
+              "value": "={{ $json.data?.[0]?.media_type || '' }}"
+            },
+            {
+              "name": "permalink",
+              "value": "={{ $json.data?.[0]?.permalink || '' }}"
+            },
+            {
+              "name": "media_url",
+              "value": "={{ $json.data?.[0]?.media_url || '' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "comments_count",
+              "value": "={{ Number($json.data?.[0]?.comments_count || 0) }}"
+            },
+            {
+              "name": "like_count",
+              "value": "={{ Number($json.data?.[0]?.like_count || 0) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "InstagramNormalize",
+      "name": "Normalize Instagram Media",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2.2,
+      "position": [800, 520]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch YouTube Trending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch TikTok Trends",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Instagram Top Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch YouTube Trending": {
+      "main": [
+        [
+          {
+            "node": "Normalize YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch TikTok Trends": {
+      "main": [
+        [
+          {
+            "node": "Normalize TikTok Trend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Instagram Top Media": {
+      "main": [
+        [
+          {
+            "node": "Normalize Instagram Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+

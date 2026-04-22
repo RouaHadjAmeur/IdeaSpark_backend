@@ -33,6 +33,9 @@ import { FriendshipModule } from './friendship/friendship.module';
 import { MessageModule } from './message/message.module';
 import { NotifContactsModule } from './notif-contacts/notif-contacts.module';
 import { CallModule } from './call/call.module';
+import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
+import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
+import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
 
 @Module({
   imports: [
@@ -79,6 +82,9 @@ import { CallModule } from './call/call.module';
     MessageModule,
     NotifContactsModule,
     CallModule,
+    YoutubeTrendsModule,
+    YoutubeAuthModule,
+    InstagramAuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
