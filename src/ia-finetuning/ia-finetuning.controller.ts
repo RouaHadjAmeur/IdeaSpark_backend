@@ -5,12 +5,17 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Delete,
+  Param,
   UseGuards,
+  Req,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -20,8 +25,13 @@ import {
   RefinePromptResponse,
   GenerateProductDto,
   GenerateProductResponse,
+  DecomposePromptDto,
+  DecomposeResponse,
+  SaveProductIdeaDto,
   HealthResponse,
   ExamplesResponse,
+  SaveProductIdeaTraceDto,
+  SavePromptRefinerTraceDto,
 } from './ia-finetuning.model';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -90,6 +100,36 @@ export class IAFinetuningController {
     return this.iaFinetuningService.generateProduct(dto);
   }
 
+  // Prompt Decomposer Endpoints
+  @Post('decompose')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Décomposer une idée en prompts spécialisés via Prompt Decomposer',
+    description:
+      'Envoie une idée de marque ou un besoin au FastAPI Prompt Decomposer (Mistral 7B GGUF) et renvoie trois prompts spécialisés (slogan, vidéo, produit).',
+  })
+  @ApiBody({
+    type: DecomposePromptDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Idée décomposée avec succès',
+    type: Object,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Données invalides',
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'Service Prompt Decomposer non disponible',
+  })
+  async decomposePrompt(@Body() dto: DecomposePromptDto): Promise<DecomposeResponse> {
+    return this.iaFinetuningService.decomposePrompt(dto);
+  }
+
   @Get('examples')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -148,5 +188,137 @@ export class IAFinetuningController {
     ]);
     
     return { healthy, models };
+  }
+
+  // Product Ideas CRUD Endpoints
+  @Post('product-ideas/save')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Sauvegarder une idée produit',
+    description: 'Enregistre une idée produit générée dans la base de données.',
+  })
+  @ApiBody({
+    type: SaveProductIdeaDto,
+    description: 'Données de l\'idée produit à sauvegarder',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Idée produit sauvegardée avec succès',
+  })
+  async saveProductIdea(@Body() dto: SaveProductIdeaDto, @Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.saveProductIdea(dto, userId);
+  }
+
+  @Get('product-ideas/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Récupérer l\'historique des idées produits',
+    description: 'Retourne toutes les idées produits générées par l\'utilisateur.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des idées produits',
+  })
+  async getProductIdeasHistory(@Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.getProductIdeasHistory(userId);
+  }
+
+  @Get('product-ideas/favorites')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Récupérer les idées produits favorites',
+    description: 'Retourne uniquement les idées produits marquées comme favorites.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des idées produits favorites',
+  })
+  async getProductIdeasFavorites(@Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.getProductIdeasFavorites(userId);
+  }
+
+  @Post('product-ideas/toggle-favorite/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Ajouter/Retirer une idée produit des favoris',
+    description: 'Bascule le statut favorite d\'une idée produit.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statut favorite mis à jour',
+  })
+  async toggleProductIdeaFavorite(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.toggleProductIdeaFavorite(id, userId);
+  }
+
+  @Delete('product-ideas/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Supprimer une idée produit',
+    description: 'Supprime définitivement une idée produit de l\'historique.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Idée produit supprimée',
+  })
+  async deleteProductIdea(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.deleteProductIdea(id, userId);
+  }
+
+  // Traces Endpoints
+  @Post('traces/product-idea')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enregistrer une trace d\'utilisation de Product Generator' })
+  async saveProductIdeaTrace(@Body() dto: SaveProductIdeaTraceDto, @Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.saveProductIdeaTrace(dto, userId);
+  }
+
+  @Post('traces/prompt-refiner')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enregistrer une trace d\'utilisation de Prompt Refiner' })
+  async savePromptRefinerTrace(@Body() dto: SavePromptRefinerTraceDto, @Req() req: any) {
+    const userId = req.user?.userId || req.user?.id || req.user._id;
+    return this.iaFinetuningService.savePromptRefinerTrace(dto, userId);
+  }
+
+  @Get('traces/stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Récupérer les statistiques d\'utilisation des modèles (Web)' })
+  async getTracesStats() {
+    return this.iaFinetuningService.getTracesStats();
+  }
+
+  @Get('traces/product-idea')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Récupérer les traces de Product Generator' })
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  async getProductIdeaTraces(@Query('query') query?: string, @Query('status') status?: string) {
+    return this.iaFinetuningService.getProductIdeaTraces(query, status);
+  }
+
+  @Get('traces/prompt-refiner')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Récupérer les traces de Prompt Refiner' })
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  async getPromptRefinerTraces(@Query('query') query?: string, @Query('status') status?: string) {
+    return this.iaFinetuningService.getPromptRefinerTraces(query, status);
   }
 }

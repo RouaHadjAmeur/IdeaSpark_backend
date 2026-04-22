@@ -28,6 +28,11 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
 import { StripeModule } from './stripe/stripe.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { InvitationModule } from './invitation/invitation.module';
+import { FriendshipModule } from './friendship/friendship.module';
+import { MessageModule } from './message/message.module';
+import { NotifContactsModule } from './notif-contacts/notif-contacts.module';
+import { CallModule } from './call/call.module';
 
 @Module({
   imports: [
@@ -48,6 +53,7 @@ import { ChallengesModule } from './challenges/challenges.module';
     MailModule,
     AuthModule,
     UsersModule,
+    LogsModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,
@@ -68,6 +74,11 @@ import { ChallengesModule } from './challenges/challenges.module';
     PlanTemplatesModule,
     StripeModule,
     ChallengesModule,
+    InvitationModule,
+    FriendshipModule,
+    MessageModule,
+    NotifContactsModule,
+    CallModule,
   ],
   controllers: [AppController],
   providers: [AppService],

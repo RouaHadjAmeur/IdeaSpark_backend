@@ -5,6 +5,8 @@ import { ApiProperty } from '@nestjs/swagger';
 export enum UserRole {
     BRAND_OWNER = 'brand_owner',
     COLLABORATOR = 'collaborator',
+    USER = 'USER',
+    ADMIN = 'ADMIN',
 }
 
 export type UserDocument = User & Document;
@@ -54,8 +56,8 @@ export class User {
     @Prop({ type: [String], default: [] })
     skills?: string[];
 
-    @ApiProperty({ description: 'User functional role', enum: UserRole, default: UserRole.BRAND_OWNER })
-    @Prop({ type: String, enum: Object.values(UserRole), default: UserRole.BRAND_OWNER })
+    @ApiProperty({ description: 'User functional role', enum: UserRole, default: UserRole.USER })
+    @Prop({ type: String, enum: Object.values(UserRole), default: UserRole.USER })
     role: UserRole;
 
     @ApiProperty({ description: 'User professional interests', required: false })
@@ -86,7 +88,7 @@ export class User {
 
     /** Account status: pending until email is verified, then active. */
     @Prop({ default: 'active' })
-    status?: 'pending' | 'active';
+    status?: 'pending' | 'active' | 'blocked';
 
     @Prop({ select: false })
     emailVerificationCode?: string;

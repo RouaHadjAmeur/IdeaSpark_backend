@@ -77,10 +77,11 @@ export class UsersService {
     return this.userModel.find().exec();
   }
 
-  async searchUsers(query: string): Promise<UserDocument[]> {
+  async searchUsers(query: string, currentUserId?: string): Promise<UserDocument[]> {
     if (!query || query.trim().length === 0) return [];
     const searchRegex = new RegExp(query, 'i');
-    return this.userModel.find({
+    
+    const filter: any = {
       status: 'active',
       $or: [
         { name: searchRegex },
@@ -90,11 +91,51 @@ export class UsersService {
         { skills: searchRegex },
         { interests: searchRegex },
       ],
-    })
-    .select('id _id email name username profile_img role skills interests')
-    .sort({ name: 1 })
-    .limit(20)
-    .exec();
+    };
+
+    if (currentUserId) {
+      filter._id = { $ne: currentUserId };
+    }
+
+    return this.userModel.find(filter)
+      .select('id _id email name username profile_img role skills interests')
+      .sort({ name: 1 })
+      .limit(20)
+      .exec();
+  }
+
+  async findAllUsers(): Promise<UserDocument[]> {
+    return this.userModel.find({ role: 'USER' }).exec();
+  }
+
+  async findAllAdmins(): Promise<UserDocument[]> {
+    return this.userModel.find({ role: 'ADMIN' }).exec();
+  }
+
+  async getStats(): Promise<{ totalUsers: number; activeUsers: number; blockedUsers: number; totalAdmins: number }> {
+    const [totalUsers, activeUsers, blockedUsers, totalAdmins] = await Promise.all([
+      this.userModel.countDocuments({ role: 'USER' }).exec(),
+      this.userModel.countDocuments({ role: 'USER', status: 'active' }).exec(),
+      this.userModel.countDocuments({ role: 'USER', status: 'blocked' }).exec(),
+      this.userModel.countDocuments({ role: 'ADMIN' }).exec(),
+    ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      blockedUsers,
+      totalAdmins,
+    };
+  }
+
+  async updateUserStatus(userId: string, status: 'active' | 'pending' | 'blocked'): Promise<UserDocument> {
+    const user = await this.userModel
+      .findByIdAndUpdate(userId, { $set: { status } }, { new: true })
+      .exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 
   async findByAuth0Sub(auth0Sub: string): Promise<UserDocument | null> {
@@ -222,4 +263,6 @@ export class UsersService {
     }
     return user;
   }
+
 }
+
