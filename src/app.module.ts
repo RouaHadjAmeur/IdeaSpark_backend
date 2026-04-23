@@ -41,6 +41,7 @@ import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.mo
 import { PostAnalyzerModule } from './post-analyzer/post-analyzer.module';
 import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
 import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -56,12 +57,12 @@ import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
         uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/ideaspark',
       }),
     }),
+    LogsModule,
     N8nModule,
     TrendsModule,
     MailModule,
     AuthModule,
     UsersModule,
-    LogsModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,
