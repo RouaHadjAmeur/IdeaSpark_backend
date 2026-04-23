@@ -285,4 +285,13 @@ export class ContentBlocksService {
             );
         }
     }
+
+    // ─── Update Image URL ─────────────────────────────────────────────────────
+
+    async updateImageUrl(id: string, imageUrl: string, userId: string): Promise<ContentBlockDocument> {
+        const block = await this.findOne(id, userId);
+        block.imageUrl = imageUrl;
+        this.logger.log(`ContentBlock ${id} image updated: ${imageUrl}`);
+        return block.save();
+    }
 }

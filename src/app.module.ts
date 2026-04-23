@@ -36,6 +36,11 @@ import { CallModule } from './call/call.module';
 import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
 import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
 import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
+import { AiImageGeneratorModule } from './ai-image-generator/ai-image-generator.module';
+import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.module';
+import { PostAnalyzerModule } from './post-analyzer/post-analyzer.module';
+import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
+import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
 
 @Module({
   imports: [
@@ -85,6 +90,11 @@ import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
     YoutubeTrendsModule,
     YoutubeAuthModule,
     InstagramAuthModule,
+    AiImageGeneratorModule,
+    TrendingHashtagsModule,
+    PostAnalyzerModule,
+    ViralHooksModule,
+    OptimalTimingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

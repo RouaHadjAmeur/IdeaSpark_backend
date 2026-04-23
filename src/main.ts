@@ -106,9 +106,10 @@ Click the "Authorize" button (🔓) and enter your JWT token to test protected e
   });
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(3000, '0.0.0.0');
+  await app.listen(port, '0.0.0.0');
 
-  console.log(`\n Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation: http://localhost:${port}/api\n`);
+  console.log(`\n✅ Application is running on: http://localhost:${port}`);
+  console.log(`✅ Network access: http://192.168.1.24:${port}`);
+  console.log(`✅ Swagger documentation: http://localhost:${port}/api\n`);
 }
 bootstrap();
