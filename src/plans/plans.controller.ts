@@ -22,9 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User, UserRole } from '../users/schemas/user.schema';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { User } from '../users/schemas/user.schema';
 import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
@@ -34,7 +32,7 @@ import { DashboardAlertsRequestDto, DashboardAlertsResponseDto } from './dto/das
 
 @ApiTags('Plans')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('plans')
 export class PlansController {
     constructor(
@@ -51,7 +49,6 @@ export class PlansController {
     // ─── POST /plans ─────────────────────────────────────────────────────────────
 
     @Post()
-    @Roles(UserRole.BRAND_OWNER)
     @ApiOperation({ summary: 'Create a new plan draft (standalone or for a brand)' })
     @ApiQuery({ name: 'brandId', required: false, description: 'Optional MongoDB ObjectId of the brand' })
     @ApiResponse({ status: 201, description: 'Plan created' })
@@ -87,7 +84,6 @@ export class PlansController {
     // ─── PATCH /plans/:id ────────────────────────────────────────────────────────
 
     @Patch(':id')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id', description: 'Plan MongoDB ObjectId' })
     @ApiOperation({ summary: 'Update plan metadata' })
     update(
@@ -101,7 +97,6 @@ export class PlansController {
     // ─── DELETE /plans/:id ───────────────────────────────────────────────────────
 
     @Delete(':id')
-    @Roles(UserRole.BRAND_OWNER)
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiParam({ name: 'id', description: 'Plan MongoDB ObjectId' })
     @ApiOperation({ summary: 'Delete a plan and all its calendar entries' })
@@ -112,7 +107,6 @@ export class PlansController {
     // ─── Project DNA & AI Insights ──────────────────────────────────────────────
 
     @Patch(':id/dna')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiOperation({ summary: 'Update project DNA' })
     updateDNA(@Param('id') id: string, @Body() update: any, @CurrentUser() user: User) {
         return this.plansService.updateProjectDNA(id, this.resolveUserId(user), update);
@@ -127,7 +121,6 @@ export class PlansController {
     // ─── POST /plans/:id/generate ────────────────────────────────────────────────
 
     @Post(':id/generate')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id' })
     @ApiOperation({ summary: 'Generate plan phases + content blocks via Gemini AI' })
     @ApiResponse({ status: 200, description: 'Plan with generated phases returned' })
@@ -138,7 +131,6 @@ export class PlansController {
     // ─── POST /plans/:id/activate ────────────────────────────────────────────────
 
     @Post(':id/activate')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id' })
     @ApiOperation({ summary: 'Activate a plan (status: draft → active)' })
     activate(@Param('id') id: string, @CurrentUser() user: User) {
@@ -148,7 +140,6 @@ export class PlansController {
     // ─── POST /plans/:id/add-to-calendar ─────────────────────────────────────────
 
     @Post(':id/add-to-calendar')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id' })
     @ApiOperation({ summary: 'Convert active plan blocks to calendar entries' })
     addToCalendar(@Param('id') id: string, @CurrentUser() user: User) {
@@ -167,7 +158,6 @@ export class PlansController {
     // ─── POST /plans/:id/regenerate ──────────────────────────────────────────────
 
     @Post(':id/regenerate')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id' })
     @ApiOperation({ summary: 'Wipe and regenerate the plan structure' })
     regenerate(@Param('id') id: string, @CurrentUser() user: User) {
@@ -205,7 +195,6 @@ export class PlansController {
     // ─── PATCH /plans/:id/campaign-copy ─────────────────────────────────────────
 
     @Patch(':id/campaign-copy')
-    @Roles(UserRole.BRAND_OWNER)
     @ApiParam({ name: 'id' })
     @ApiOperation({
         summary: 'Save chosen campaign slogan and/or launch headline to a plan',
@@ -218,5 +207,27 @@ export class PlansController {
         @CurrentUser() user: User,
     ) {
         return this.plansService.updateCampaignCopy(id, dto, this.resolveUserId(user));
+    }
+
+    // ─── POST /plans/:id/generate-hook/:blockId ────────────────────────────────
+    @Post(':id/generate-hook/:blockId')
+    @ApiOperation({ summary: 'Generate AI hook for a specific content block' })
+    generateHook(
+        @Param('id') id: string,
+        @Param('blockId') blockId: string,
+        @CurrentUser() user: User,
+    ) {
+        return this.plansService.generateHook(id, blockId, this.resolveUserId(user));
+    }
+
+    // ─── POST /plans/:id/generate-caption/:blockId ─────────────────────────────
+    @Post(':id/generate-caption/:blockId')
+    @ApiOperation({ summary: 'Generate AI caption for a specific content block' })
+    generateCaption(
+        @Param('id') id: string,
+        @Param('blockId') blockId: string,
+        @CurrentUser() user: User,
+    ) {
+        return this.plansService.generateCaption(id, blockId, this.resolveUserId(user));
     }
 }

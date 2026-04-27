@@ -33,7 +33,7 @@ export class AIProjectService {
 
         try {
             const response = await axios.post(
-                'https://router.huggingface.co/novita/v3/openai/chat/completions',
+                'https://router.huggingface.co/v1/chat/completions',
                 {
                     model,
                     messages: [{ role: 'user', content: prompt }],
@@ -174,5 +174,33 @@ export class AIProjectService {
             this.logger.error('DNA suggestion failed', e);
             return {};
         }
+    }
+
+    // ─── Hook & Caption Generation ──────────────────────────────────────────────
+    async generateHook(plan: Plan, block: any): Promise<string> {
+        const prompt = `
+            Generate a viral marketing HOOK for this content block.
+            Campaign: ${plan.name} (Objective: ${plan.objective})
+            Post Title: ${block.title}
+            Pillar: ${block.pillar}
+            Format: ${block.format}
+            
+            Return ONLY the hook text, concise and punchy.
+        `;
+        return this.callHuggingFace(this.primaryModel, prompt);
+    }
+
+    async generateCaption(plan: Plan, block: any): Promise<string> {
+        const prompt = `
+            Generate an engaging Instagram/TikTok CAPTION for this content block.
+            Campaign: ${plan.name} (Objective: ${plan.objective})
+            Post Title: ${block.title}
+            Pillar: ${block.pillar}
+            Format: ${block.format}
+            CTA Type: ${block.ctaType}
+            
+            Include relevant emojis and hashtags. Return ONLY the caption text.
+        `;
+        return this.callHuggingFace(this.primaryModel, prompt);
     }
 }

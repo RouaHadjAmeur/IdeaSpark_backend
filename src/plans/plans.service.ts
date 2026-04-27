@@ -8,7 +8,7 @@ import {
     forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import {
     Plan,
@@ -77,6 +77,10 @@ export class PlansService {
             },
             status: PlanStatus.DRAFT,
             phases: [],
+            projectDNA: {
+                performance: { consistencyScore: 90, engagementScore: 85, budgetScore: 80, timingScore: 95 },
+                budget: { totalBudget: 1000, spentBudget: 0, platformROAS: [] }
+            }
         });
 
         return plan.save();
@@ -90,6 +94,7 @@ export class PlansService {
         const filter: Record<string, any> = {
             $or: [
                 { userId },
+                { collaboratorIds: userId },
                 { _id: { $in: collabPlanIds } }
             ]
         };
@@ -101,7 +106,12 @@ export class PlansService {
     // ─── findOne ─────────────────────────────────────────────────────────────────
 
     async findOne(planId: string, userId: string, skipCollaboratorCheck = false): Promise<PlanDocument> {
-        let plan = await this.planModel.findOne({ _id: planId, userId }).exec();
+        const uId = new Types.ObjectId(userId);
+        let plan = await this.planModel.findOne({ 
+            _id: new Types.ObjectId(planId), 
+            $or: [{ userId: uId }, { collaboratorIds: uId }] 
+        }).exec();
+        
         if (!plan && !skipCollaboratorCheck) {
             const isCollab = await this.collaborationService.assertAccess(planId, userId).catch(() => false);
             if (isCollab) {
@@ -199,7 +209,12 @@ export class PlansService {
                 recommendedDayOffset: aiBlock.recommendedDayOffset,
                 recommendedTime: aiBlock.recommendedTime || null,
                 status: ContentBlockStatus.DRAFT,
+                hook: '',
+                caption: '',
+                hookGenerated: false,
+                captionGenerated: false,
             })),
+            status: aiPhase.weekNumber === 1 ? 'in_progress' : 'upcoming',
         }));
 
         // Single atomic update — replaces all phases
@@ -433,11 +448,68 @@ export class PlansService {
         };
     }
 
+    async generateHook(planId: string, blockId: string, userId: string): Promise<PlanDocument> {
+        const plan = await this.findOne(planId, userId);
+        const block = this.findBlockInPhases(plan, blockId);
+        if (!block) throw new NotFoundException(`Block ${blockId} not found`);
+
+        const hook = await this.aiProjectService.generateHook(plan, block);
+
+        return this.planModel.findOneAndUpdate(
+            { _id: planId, 'phases.contentBlocks._id': new Types.ObjectId(blockId) },
+            { 
+                $set: { 
+                    'phases.$[].contentBlocks.$[block].hook': hook,
+                    'phases.$[].contentBlocks.$[block].hookGenerated': true 
+                } 
+            },
+            { 
+                arrayFilters: [{ 'block._id': new Types.ObjectId(blockId) }],
+                new: true 
+            }
+        ).exec() as Promise<PlanDocument>;
+    }
+
+    async generateCaption(planId: string, blockId: string, userId: string): Promise<PlanDocument> {
+        const plan = await this.findOne(planId, userId);
+        const block = this.findBlockInPhases(plan, blockId);
+        if (!block) throw new NotFoundException(`Block ${blockId} not found`);
+
+        const caption = await this.aiProjectService.generateCaption(plan, block);
+
+        return this.planModel.findOneAndUpdate(
+            { _id: planId, 'phases.contentBlocks._id': new Types.ObjectId(blockId) },
+            { 
+                $set: { 
+                    'phases.$[].contentBlocks.$[block].caption': caption,
+                    'phases.$[].contentBlocks.$[block].captionGenerated': true 
+                } 
+            },
+            { 
+                arrayFilters: [{ 'block._id': new Types.ObjectId(blockId) }],
+                new: true 
+            }
+        ).exec() as Promise<PlanDocument>;
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────────
 
     private async assertBrandOwnership(brandId: string, userId: string): Promise<BrandDocument> {
-        const brand = await this.brandModel.findOne({ _id: brandId, userId }).exec();
-        if (!brand) throw new ForbiddenException('Brand not found or you do not own it');
+        this.logger.debug(`Checking ownership for brandId: ${brandId}, userId: ${userId}`);
+        
+        const brand = await this.brandModel.findById(brandId).exec();
+        
+        if (!brand) {
+            this.logger.warn(`Brand ${brandId} NOT FOUND in database`);
+            throw new ForbiddenException('Brand not found');
+        }
+
+        // Compare string IDs to be safe against ObjectId vs string mismatches
+        if (brand.userId.toString() !== userId.toString()) {
+            this.logger.warn(`Ownership check FAILED for brandId: ${brandId}. Owner is ${brand.userId}, but requester is ${userId}`);
+            throw new ForbiddenException('You do not have permission to use this brand');
+        }
+        
         return brand;
     }
 
@@ -462,5 +534,13 @@ export class PlansService {
 
     private daysDiff(a: Date, b: Date): number {
         return Math.abs(Math.floor((a.getTime() - b.getTime()) / 86_400_000));
+    }
+
+    private findBlockInPhases(plan: PlanDocument, blockId: string) {
+        for (const phase of plan.phases) {
+            const block = phase.contentBlocks.find(b => b._id.toString() === blockId);
+            if (block) return block;
+        }
+        return null;
     }
 }

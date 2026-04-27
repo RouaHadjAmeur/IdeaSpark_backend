@@ -16,6 +16,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PlanObjective, PlanPromotionIntensity } from '../schemas/plan.schema';
+import { Allow } from 'class-validator';
 
 class ContentMixDto {
     @ApiPropertyOptional({ example: 30 })
@@ -112,4 +113,26 @@ export class CreatePlanDto {
     @IsString()
     @IsOptional()
     lastNoteAuthorId?: string;
+
+    // ─── Extra optional fields (sent by mobile client) ───────────────────────
+
+    @ApiPropertyOptional({ description: 'Brand ID (also accepted as query param)' })
+    @IsOptional()
+    @IsString()
+    brandId?: string;
+
+    @ApiPropertyOptional({ description: 'End date of the campaign (ISO string)' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
+
+    @ApiPropertyOptional({ description: 'Project DNA object (budget, strategic, etc.)' })
+    @IsOptional()
+    @IsObject()
+    projectDNA?: Record<string, any>;
+
+    @ApiPropertyOptional({ description: 'Initial phases (optional, AI will generate later)' })
+    @IsOptional()
+    @IsArray()
+    phases?: any[];
 }

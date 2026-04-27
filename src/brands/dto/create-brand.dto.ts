@@ -116,6 +116,23 @@ class SmartRotationDto {
     minGapBetweenPromotions?: number;
 }
 
+class ProductDto {
+    @ApiPropertyOptional({ example: 'prod_123' })
+    @IsOptional()
+    @IsString()
+    id?: string;
+
+    @ApiProperty({ example: 'Running Shoes' })
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @ApiPropertyOptional({ example: 'https://example.com/image.jpg' })
+    @IsOptional()
+    @IsString()
+    imageUrl?: string;
+}
+
 // ─── Main DTO ───
 
 export class CreateBrandDto {
@@ -235,4 +252,11 @@ export class CreateBrandDto {
     @ValidateNested()
     @Type(() => SmartRotationDto)
     smartRotation?: SmartRotationDto;
+
+    @ApiPropertyOptional({ type: [ProductDto] })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ProductDto)
+    products?: ProductDto[];
 }

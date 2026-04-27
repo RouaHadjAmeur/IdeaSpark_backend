@@ -1,10 +1,6 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-    GoogleGenerativeAI,
-    SchemaType,
-    GenerationConfig,
-} from '@google/generative-ai';
+import axios from 'axios';
 import { Plan, PlanDocument, PlanPromotionIntensity, ContentFormat, CtaType } from '../schemas/plan.schema';
 
 // ─── AI response types ────────────────────────────────────────
@@ -63,56 +59,70 @@ export interface BrandContext {
 @Injectable()
 export class PlanGeneratorService {
     private readonly logger = new Logger(PlanGeneratorService.name);
-    private readonly genAI: GoogleGenerativeAI;
+    private readonly apiKey: string;
     private readonly modelName: string;
 
     constructor(private readonly configService: ConfigService) {
-        const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-        if (!apiKey) {
-            this.logger.warn('GEMINI_API_KEY is not configured. Plan generation features will not work.');
-            // Don't initialize GoogleGenerativeAI if no key
-            this.genAI = null as any;
-            this.modelName = 'gemini-2.0-flash';
-        } else {
-            this.genAI = new GoogleGenerativeAI(apiKey);
-            // Reuse the same model configured for slogan generation; default to gemini-2.0-flash
-            this.modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-2.0-flash';
+        this.apiKey = this.configService.get<string>('HUGGING_FACE_API_KEY') || '';
+        if (!this.apiKey) {
+            this.logger.warn('HUGGING_FACE_API_KEY is not configured. Plan generation features will not work.');
         }
+        this.modelName = 'Qwen/Qwen2.5-7B-Instruct'; // Using 7B model because 72B triggers HF 504 Gateway Timeout on large payloads
     }
 
     // ─── Public API ──────────────────────────────────────────
 
     async generate(plan: Plan | PlanDocument, brand: BrandContext): Promise<AIPlanStructure> {
         const prompt = this.buildPrompt(plan, brand);
-        const schema  = this.buildResponseSchema();
 
         this.logger.log(`Generating plan structure for planId=${(plan as any)._id ?? (plan as any).id}, brand="${brand.name}", model=${this.modelName}, weeks=${plan.durationWeeks}, postsPerWeek=${plan.postingFrequency}`);
 
-        const model = this.genAI.getGenerativeModel({
-            model: this.modelName,
-            generationConfig: {
-                responseMimeType: 'application/json',
-                responseSchema: schema,
-            } as GenerationConfig,
-        });
+        if (!this.apiKey) {
+            throw new InternalServerErrorException('Hugging Face API key missing');
+        }
 
         try {
-            const timeoutMs = 90_000;
-            const generatePromise = model.generateContent(prompt);
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error(`Gemini timed out after ${timeoutMs / 1000}s`)), timeoutMs),
+            const response = await axios.post(
+                'https://router.huggingface.co/v1/chat/completions',
+                {
+                    model: this.modelName,
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 8000,
+                    temperature: 0.7,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 180000,
+                }
             );
 
-            const result = await Promise.race([generatePromise, timeoutPromise]) as Awaited<typeof generatePromise>;
-            const raw      = result.response.text();
-            this.logger.log(`Gemini raw response length: ${raw.length} chars`);
-            const parsed   = JSON.parse(raw) as AIPlanStructure;
+            const raw = response.data?.choices?.[0]?.message?.content;
+            if (!raw) {
+                throw new Error(`Unexpected response from HF: ${JSON.stringify(response.data)}`);
+            }
 
-            this.validate(parsed, plan);
+            this.logger.log(`HF raw response length: ${raw.length} chars`);
+            
+            // Clean markdown JSON formatting if present
+            const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+            const jsonString = match ? match[0] : cleaned;
+            
+            const parsed = JSON.parse(jsonString) as AIPlanStructure;
+
+            this.validate(parsed, plan as Plan);
             return parsed;
         } catch (err) {
-            this.logger.error(`Gemini generation failed (model=${this.modelName}): ${err.message}`);
-            throw new InternalServerErrorException(`AI plan generation failed: ${err.message}`);
+            const status = err.response?.status;
+            let errorMsg = err.message;
+            if (err.response?.data) {
+                errorMsg = typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : err.response.data;
+            }
+            this.logger.error(`Generation failed (model=${this.modelName}): [${status}] ${errorMsg}`);
+            throw new InternalServerErrorException(`AI plan generation failed: ${errorMsg}`);
         }
     }
 
@@ -209,53 +219,33 @@ OUTPUT REQUIREMENTS
 - recommendedTime: use audience-optimal times (e.g. "08:00", "12:00", "18:00", "20:00").
 - titles must be engaging, specific, and reflect the brand tone.
 - pillar must exactly match one of: ${pillars}
-- productId: use one of [${plan.productIds.join(', ')}] or null.
-- Return valid JSON matching the provided schema exactly.
+- Return valid JSON matching this schema exactly:
+{
+  "phases": [
+    {
+      "name": "string",
+      "weekNumber": "integer (1-based)",
+      "description": "string",
+      "contentBlocks": [
+        {
+          "title": "string",
+          "pillar": "string",
+          "format": "string (post|story|reel|carousel|video|article)",
+          "ctaType": "string (soft|hard|educational|engagement)",
+          "emotionalTrigger": "string",
+          "recommendedDayOffset": "integer (0-6)",
+          "recommendedTime": "string (HH:MM)",
+          "productId": "string or null"
+        }
+      ]
+    }
+  ]
+}
+Return ONLY valid JSON without markdown blocks or other text.
 `.trim();
     }
 
-    // ─── Gemini response schema ──────────────────────────────
 
-    private buildResponseSchema() {
-        return {
-            type: SchemaType.OBJECT,
-            properties: {
-                phases: {
-                    type: SchemaType.ARRAY,
-                    items: {
-                        type: SchemaType.OBJECT,
-                        properties: {
-                            name:        { type: SchemaType.STRING },
-                            weekNumber:  { type: SchemaType.INTEGER },
-                            description: { type: SchemaType.STRING },
-                            contentBlocks: {
-                                type: SchemaType.ARRAY,
-                                items: {
-                                    type: SchemaType.OBJECT,
-                                    properties: {
-                                        title:                { type: SchemaType.STRING },
-                                        pillar:               { type: SchemaType.STRING },
-                                        format:               { type: SchemaType.STRING, enum: Object.values(ContentFormat) },
-                                        ctaType:              { type: SchemaType.STRING, enum: Object.values(CtaType) },
-                                        emotionalTrigger:     { type: SchemaType.STRING },
-                                        recommendedDayOffset: { type: SchemaType.INTEGER },
-                                        recommendedTime:      { type: SchemaType.STRING },
-                                        productId:            { type: SchemaType.STRING, nullable: true },
-                                    },
-                                    required: [
-                                        'title', 'pillar', 'format', 'ctaType',
-                                        'emotionalTrigger', 'recommendedDayOffset', 'recommendedTime',
-                                    ],
-                                },
-                            },
-                        },
-                        required: ['name', 'weekNumber', 'description', 'contentBlocks'],
-                    },
-                },
-            },
-            required: ['phases'],
-        };
-    }
 
     // ─── Validation ──────────────────────────────────────────
 

@@ -62,7 +62,7 @@ export class DashboardAlertsService {
 
         try {
             const response = await axios.post(
-                'https://router.huggingface.co/novita/v3/openai/chat/completions',
+                'https://router.huggingface.co/v1/chat/completions',
                 {
                     model,
                     messages: [{ role: 'user', content: prompt }],
