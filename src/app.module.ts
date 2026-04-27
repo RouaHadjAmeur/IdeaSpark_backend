@@ -42,6 +42,8 @@ import { PostAnalyzerModule } from './post-analyzer/post-analyzer.module';
 import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
 import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
 import { LogsModule } from './logs/logs.module';
+import { ImageEditorModule } from './image-editor/image-editor.module';
+import { AdvancedShareModule } from './advanced-share/advanced-share.module';
 
 @Module({
   imports: [
@@ -96,6 +98,8 @@ import { LogsModule } from './logs/logs.module';
     PostAnalyzerModule,
     ViralHooksModule,
     OptimalTimingModule,
+    ImageEditorModule,
+    AdvancedShareModule,
   ],
   controllers: [AppController],
   providers: [AppService],
