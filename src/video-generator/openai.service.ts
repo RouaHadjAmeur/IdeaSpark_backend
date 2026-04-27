@@ -219,6 +219,7 @@ Response format: Return ONLY a valid JSON object (no markdown, no code blocks) w
 
 Product: ${request.productName}
 Category: ${request.productCategory}
+${request.productDescription ? `Description: ${request.productDescription}` : ''}
 Target Audience: ${request.targetAudience}
 Key Benefits: ${request.keyBenefits.join(', ')}
 ${request.painPoint ? `Pain Point: ${request.painPoint}` : ''}
