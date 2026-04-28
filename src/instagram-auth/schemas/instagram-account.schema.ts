@@ -34,6 +34,15 @@ export class InstagramAccount {
 
   @Prop()
   pageName?: string;
+
+  @Prop({ type: Object })
+  latestInsights?: {
+    views: number;
+    interactions: number;
+    newFollowers: number;
+    contentShared: number;
+    updatedAt: Date;
+  };
 }
 
 export const InstagramAccountSchema = SchemaFactory.createForClass(InstagramAccount);

@@ -16,7 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { IAScratchService } from './ia-scratch.service';
 import {
-  GenerateProductIdeaDto,
+  GenerateProductIdeaIAScratchDto,
   GenerateProductResponse,
   HealthResponse,
 } from './ia-scratch.model';
@@ -36,8 +36,8 @@ export class IAScratchController {
     description:
       'Délègue la génération d’idée produit à l’API FastAPI locale Product Generator API.',
   })
-  @ApiBody({
-    type: GenerateProductIdeaDto,
+   @ApiBody({
+    type: GenerateProductIdeaIAScratchDto,
   })
   @ApiResponse({
     status: 200,
@@ -45,7 +45,7 @@ export class IAScratchController {
     type: Object,
   })
   generateProduct(
-    @Body() dto: GenerateProductIdeaDto,
+    @Body() dto: GenerateProductIdeaIAScratchDto,
   ): Promise<GenerateProductResponse> {
     return this.iaScratchService.generateIdea(dto);
   }

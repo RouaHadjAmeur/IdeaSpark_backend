@@ -98,7 +98,7 @@ export enum CTA {
 
 @Schema({ timestamps: true })
 export class Persona {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
+     @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true, index: true })
     userId: Types.ObjectId;
 
     @Prop({ required: true, enum: UserType })
@@ -140,5 +140,3 @@ export class Persona {
 
 export const PersonaSchema = SchemaFactory.createForClass(Persona);
 
-// Add index for faster lookups by userId
-PersonaSchema.index({ userId: 1 });

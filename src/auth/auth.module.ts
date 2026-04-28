@@ -10,10 +10,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { Auth0Strategy } from './strategies/auth0.strategy';
 import { GoogleOAuthStrategy } from './strategies/google-oauth.strategy';
 import { FacebookOAuthStrategy } from './strategies/facebook-oauth.strategy';
+import { LogsModule } from '../logs/logs.module';
 
 @Module({
     imports: [
         UsersModule,
+        LogsModule,
         PassportModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],

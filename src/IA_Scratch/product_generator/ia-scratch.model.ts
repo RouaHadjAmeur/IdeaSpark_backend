@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class GenerateProductIdeaDto {
+export class GenerateProductIdeaIAScratchDto {
   @ApiProperty({
     description: 'Besoin utilisateur à transformer en idée produit vendable',
     example:

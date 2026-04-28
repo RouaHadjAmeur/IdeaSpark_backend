@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import {
-  GenerateProductIdeaDto,
+  GenerateProductIdeaIAScratchDto,
   GenerateProductResponse,
   HealthResponse,
 } from './ia-scratch.model';
@@ -23,7 +23,7 @@ export class IAScratchService {
   }
 
   async generateIdea(
-    dto: GenerateProductIdeaDto,
+    dto: GenerateProductIdeaIAScratchDto,
   ): Promise<GenerateProductResponse> {
     try {
       const response = await this.client.post<GenerateProductResponse>(
