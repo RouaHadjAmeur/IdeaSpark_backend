@@ -25,6 +25,7 @@ import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
 import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
 import { ImageEditorModule } from './image-editor/image-editor.module';
 import { AdvancedShareModule } from './advanced-share/advanced-share.module';
+import { VideoEditorModule } from './video-editor/video-editor.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { AdvancedShareModule } from './advanced-share/advanced-share.module';
     OptimalTimingModule,
     ImageEditorModule,
     AdvancedShareModule,
+    VideoEditorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
