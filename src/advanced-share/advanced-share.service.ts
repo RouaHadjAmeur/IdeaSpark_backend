@@ -1,10 +1,13 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as cron from 'node-cron';
 import axios from 'axios';
 import { ScheduledPost, PostStatus, SocialPlatform } from './schemas/scheduled-post.schema';
 import { SocialAccount } from './schemas/social-account.schema';
+import { InstagramAccount } from '../instagram-auth/schemas/instagram-account.schema';
+import { YoutubeAccount } from '../youtube-auth/schemas/youtube-account.schema';
+import { InstagramAuthService } from '../instagram-auth/instagram-auth.service';
 import { SchedulePostDto, ShareNowDto, ConnectAccountDto, GenerateHashtagsDto } from './dto/schedule-post.dto';
 
 @Injectable()
@@ -14,6 +17,9 @@ export class AdvancedShareService {
   constructor(
     @InjectModel(ScheduledPost.name) private scheduledPostModel: Model<ScheduledPost>,
     @InjectModel(SocialAccount.name) private socialAccountModel: Model<SocialAccount>,
+    @InjectModel(InstagramAccount.name) private instagramAccountModel: Model<InstagramAccount>,
+    @InjectModel(YoutubeAccount.name) private youtubeAccountModel: Model<YoutubeAccount>,
+    private readonly instagramAuthService: InstagramAuthService,
   ) {}
 
   async schedulePost(userId: string, dto: SchedulePostDto): Promise<ScheduledPost> {
@@ -23,24 +29,23 @@ export class AdvancedShareService {
       console.log('📅 [AdvancedShare] Scheduled time:', dto.scheduledTime);
 
       // 1. Vérifier que les comptes existent
-      const accounts = await this.socialAccountModel.find({
-        _id: { $in: dto.accountIds },
-        userId,
-        isActive: true,
-      });
+      const igAccounts = await this.instagramAccountModel.find({ _id: { $in: dto.accountIds }, userId: new Types.ObjectId(userId) });
+      const ytAccounts = await this.youtubeAccountModel.find({ _id: { $in: dto.accountIds }, userId: new Types.ObjectId(userId) });
+      const totalFound = igAccounts.length + ytAccounts.length;
 
-      if (accounts.length !== dto.accountIds.length) {
+      if (totalFound !== dto.accountIds.length) {
         throw new HttpException('Certains comptes sont introuvables ou inactifs', HttpStatus.BAD_REQUEST);
       }
 
       // 2. Créer l'entrée en base
       const scheduledPost = new this.scheduledPostModel({
         userId,
-        contentId: dto.contentId,
-        contentType: dto.contentType,
+        contentId: dto.contentId || 'temp_id',
+        contentType: dto.contentType || 'image',
         contentUrl: dto.contentUrl,
-        caption: dto.caption,
-        hashtags: dto.hashtags,
+        audioUrl: dto.audioUrl,
+        caption: dto.caption || '',
+        hashtags: dto.hashtags || [],
         platforms: dto.platforms,
         accountIds: dto.accountIds,
         scheduledTime: new Date(dto.scheduledTime),
@@ -77,9 +82,23 @@ export class AdvancedShareService {
         hashtags: dto.hashtags,
         platforms: dto.platforms,
         accountIds: dto.accountIds,
+        audioUrl: dto.audioUrl,
       };
 
       const results = await this.executePost(tempPost);
+      
+      const successfulShares = results.filter(r => r.success);
+      if (successfulShares.length === 0 && results.length > 0) {
+        throw new HttpException(
+          `Share failed: ${results[0].error}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      } else if (results.length === 0) {
+        throw new HttpException(
+          'No valid accounts selected for sharing.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
       
       console.log('✅ [AdvancedShare] Shared immediately');
       return results;
@@ -92,8 +111,42 @@ export class AdvancedShareService {
     }
   }
 
-  async getConnectedAccounts(userId: string): Promise<SocialAccount[]> {
-    return this.socialAccountModel.find({ userId, isActive: true }).exec();
+  async getConnectedAccounts(userId: string): Promise<any[]> {
+    const igAccounts = await this.instagramAccountModel.find({ userId: new Types.ObjectId(userId) });
+    const ytAccounts = await this.youtubeAccountModel.find({ userId: new Types.ObjectId(userId) });
+    
+    const mappedAccounts: any[] = [];
+
+    for (const ig of igAccounts) {
+      mappedAccounts.push({
+        id: ig._id.toString(),
+        userId: ig.userId.toString(),
+        platform: SocialPlatform.INSTAGRAM,
+        name: ig.pageName || ig.username || 'Instagram',
+        username: ig.username || 'Instagram User',
+        profileImageUrl: ig.profilePictureUrl,
+        accessToken: ig.accessToken,
+        platformUserId: ig.igUserId,
+        isActive: true
+      });
+    }
+
+    for (const yt of ytAccounts) {
+      mappedAccounts.push({
+        id: yt._id.toString(),
+        userId: yt.userId.toString(),
+        platform: SocialPlatform.YOUTUBE,
+        name: yt.channelTitle || 'YouTube',
+        username: yt.channelTitle || 'YouTube Channel',
+        profileImageUrl: yt.channelThumbnail,
+        accessToken: yt.accessToken,
+        refreshToken: yt.refreshToken,
+        platformUserId: yt.channelId,
+        isActive: true
+      });
+    }
+
+    return mappedAccounts;
   }
 
   async connectAccount(userId: string, dto: ConnectAccountDto): Promise<SocialAccount> {
@@ -265,10 +318,25 @@ export class AdvancedShareService {
   }
 
   private async executePost(post: any): Promise<any[]> {
-    const accounts = await this.socialAccountModel.find({
-      _id: { $in: post.accountIds },
-      isActive: true,
-    });
+    const igAccounts = await this.instagramAccountModel.find({ _id: { $in: post.accountIds } });
+    const ytAccounts = await this.youtubeAccountModel.find({ _id: { $in: post.accountIds } });
+    
+    const accounts = [
+      ...igAccounts.map(ig => ({
+        _id: ig._id.toString(),
+        platform: SocialPlatform.INSTAGRAM,
+        accessToken: ig.accessToken,
+        platformUserId: ig.igUserId,
+        userId: ig.userId,
+      })),
+      ...ytAccounts.map(yt => ({
+        _id: yt._id.toString(),
+        platform: SocialPlatform.YOUTUBE,
+        accessToken: yt.accessToken,
+        platformUserId: yt.channelId,
+        userId: yt.userId,
+      }))
+    ];
 
     const results: any[] = [];
 
@@ -309,26 +377,91 @@ export class AdvancedShareService {
     return results;
   }
 
-  private async shareToInstagram(account: SocialAccount, post: any): Promise<any> {
+  private async shareToInstagram(account: any, post: any): Promise<any> {
     try {
       // 1. Upload du média
+      const payload: any = {
+        caption: `${post.caption || ''}\n\n${(post.hashtags || []).join(' ')}`.trim(),
+        access_token: account.accessToken,
+      };
+
+      if (post.contentType === 'video') {
+        const transcodedUrl = await this.instagramAuthService.transcodeAndUploadVideoFromUrl(
+          post.contentUrl,
+          account.userId.toString(),
+          'reel',
+          post.audioUrl,
+        );
+
+        payload.video_url = transcodedUrl;
+        payload.media_type = 'REELS';
+        payload.share_to_feed = true;
+      } else {
+        if (post.audioUrl) {
+          // Si on a de l'audio pour une image, on la convertit en vidéo (Reel)
+          const transcodedUrl = await this.instagramAuthService.transcodeAndUploadVideoFromUrl(
+            post.contentUrl,
+            account.userId.toString(),
+            'image',
+            post.audioUrl,
+          );
+          payload.video_url = transcodedUrl;
+          payload.media_type = 'REELS';
+          payload.share_to_feed = true;
+        } else {
+          payload.image_url = post.contentUrl;
+        }
+      }
+
       const mediaResponse = await axios.post(
-        `https://graph.instagram.com/v18.0/${account.platformUserId}/media`,
+        `https://graph.facebook.com/v20.0/${account.platformUserId}/media`,
+        null,
+        { params: payload, timeout: 60000 }
+      );
+      
+      const creationId = mediaResponse.data.id;
+      if (!creationId) {
+        throw new Error('Failed to create Instagram media container: No ID returned');
+      }
+
+      if (post.contentType === 'video' || post.audioUrl) {
+        console.log(`⏳ [AdvancedShare] Waiting for Instagram to process media ${creationId}...`);
+        let status = 'IN_PROGRESS';
+        let retries = 0;
+        while (status !== 'FINISHED' && retries < 30) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const statusRes = await axios.get(
+            `https://graph.facebook.com/v20.0/${creationId}`,
+            { params: { fields: 'status_code', access_token: account.accessToken }, timeout: 10000 }
+          );
+          status = statusRes.data.status_code;
+          console.log(`📊 [AdvancedShare] Media ${creationId} status: ${status}`);
+          if (status === 'FINISHED') break;
+          if (status === 'ERROR') {
+             const errorMsg = statusRes.data.status_message || 'Unknown processing error';
+             throw new Error(`Instagram failed to process media: ${errorMsg}`);
+          }
+          retries++;
+        }
+      }
+
+      // 2. Publication du média
+      console.log(`📢 [AdvancedShare] Publishing media ${creationId}...`);
+      const publishResponse = await axios.post(
+        `https://graph.facebook.com/v20.0/${account.platformUserId}/media_publish`,
+        null,
         {
-          image_url: post.contentUrl,
-          caption: `${post.caption}\n\n${post.hashtags.join(' ')}`,
-          access_token: account.accessToken,
+          params: {
+            creation_id: creationId,
+            access_token: account.accessToken,
+          }
         }
       );
 
-      // 2. Publication du média
-      const publishResponse = await axios.post(
-        `https://graph.instagram.com/v18.0/${account.platformUserId}/media_publish`,
-        {
-          creation_id: mediaResponse.data.id,
-          access_token: account.accessToken,
-        }
-      );
+      if (!publishResponse.data.id) {
+        console.error('❌ [AdvancedShare] Media publish response missing ID:', publishResponse.data);
+        throw new Error('Instagram publish succeeded but no media ID was returned');
+      }
 
       return {
         success: true,
@@ -336,11 +469,14 @@ export class AdvancedShareService {
         platform: 'instagram',
       };
     } catch (error) {
-      throw new Error(`Instagram share failed: ${error.response?.data?.error?.message || error.message}`);
+      const metaError = error.response?.data?.error?.message;
+      const errorMessage = metaError ? `Meta Error: ${metaError}` : error.message;
+      console.error(`❌ [AdvancedShare] Instagram share failed: ${errorMessage}`);
+      throw new Error(`Instagram share failed: ${errorMessage}`);
     }
   }
 
-  private async shareToFacebook(account: SocialAccount, post: any): Promise<any> {
+  private async shareToFacebook(account: any, post: any): Promise<any> {
     try {
       const response = await axios.post(
         `https://graph.facebook.com/v18.0/${account.platformUserId}/photos`,
@@ -361,7 +497,7 @@ export class AdvancedShareService {
     }
   }
 
-  private async shareToTwitter(account: SocialAccount, post: any): Promise<any> {
+  private async shareToTwitter(account: any, post: any): Promise<any> {
     try {
       // Note: Twitter API v2 nécessite une implémentation plus complexe
       // Ceci est un exemple simplifié

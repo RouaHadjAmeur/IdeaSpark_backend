@@ -58,6 +58,9 @@ export class ScheduledPost extends Document {
   @Prop({ required: true })
   caption: string;
 
+  @Prop()
+  audioUrl?: string;
+
   @Prop({ type: [String], default: [] })
   hashtags: string[];
 

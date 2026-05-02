@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -26,6 +27,9 @@ import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
 import { ImageEditorModule } from './image-editor/image-editor.module';
 import { AdvancedShareModule } from './advanced-share/advanced-share.module';
 import { VideoEditorModule } from './video-editor/video-editor.module';
+import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
+import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
+import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
 
 @Module({
   imports: [
@@ -33,6 +37,8 @@ import { VideoEditorModule } from './video-editor/video-editor.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    ScheduleModule.forRoot(),
 
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -65,6 +71,9 @@ import { VideoEditorModule } from './video-editor/video-editor.module';
     ImageEditorModule,
     AdvancedShareModule,
     VideoEditorModule,
+    YoutubeAuthModule,
+    InstagramAuthModule,
+    YoutubeTrendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

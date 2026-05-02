@@ -14,6 +14,10 @@ export class SchedulePostDto {
   @IsString()
   caption: string;
 
+  @IsOptional()
+  @IsUrl()
+  audioUrl?: string;
+
   @IsArray()
   @IsString({ each: true })
   hashtags: string[];
@@ -42,6 +46,10 @@ export class ShareNowDto {
 
   @IsString()
   caption: string;
+
+  @IsOptional()
+  @IsUrl()
+  audioUrl?: string;
 
   @IsArray()
   @IsString({ each: true })
