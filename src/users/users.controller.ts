@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import * as userSchema from './schemas/user.schema';
 import { StripeService } from '../stripe/stripe.service';
+import { LogsService } from '../logs/logs.service';
 
 @ApiTags('Users')
 @Controller('users')

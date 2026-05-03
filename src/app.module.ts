@@ -27,17 +27,24 @@ import { PlanCollaborationModule } from './plan-collaboration/plan-collaboration
 import { CaptionGeneratorModule } from './caption-generator/caption-generator.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlanTemplatesModule } from './plan-templates/plan-templates.module';
+import { StripeModule } from './stripe/stripe.module';
+import { ChallengesModule } from './challenges/challenges.module';
+import { InvitationModule } from './invitation/invitation.module';
+import { FriendshipModule } from './friendship/friendship.module';
+import { MessageModule } from './message/message.module';
+import { NotifContactsModule } from './notif-contacts/notif-contacts.module';
+import { CallModule } from './call/call.module';
+import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
+import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
+import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
 import { AiImageGeneratorModule } from './ai-image-generator/ai-image-generator.module';
 import { TrendingHashtagsModule } from './trending-hashtags/trending-hashtags.module';
 import { PostAnalyzerModule } from './post-analyzer/post-analyzer.module';
 import { ViralHooksModule } from './viral-hooks/viral-hooks.module';
 import { OptimalTimingModule } from './optimal-timing/optimal-timing.module';
+import { LogsModule } from './logs/logs.module';
 import { ImageEditorModule } from './image-editor/image-editor.module';
 import { AdvancedShareModule } from './advanced-share/advanced-share.module';
-import { VideoEditorModule } from './video-editor/video-editor.module';
-import { YoutubeAuthModule } from './youtube-auth/youtube-auth.module';
-import { InstagramAuthModule } from './instagram-auth/instagram-auth.module';
-import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
 
 @Module({
   imports: [
@@ -55,12 +62,12 @@ import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
         uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/ideaspark',
       }),
     }),
+    LogsModule,
     N8nModule,
     TrendsModule,
     MailModule,
     AuthModule,
     UsersModule,
-    LogsModule,
     VideoGeneratorModule,
     PersonaModule,
     SloganModule,
@@ -79,6 +86,16 @@ import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
     CaptionGeneratorModule,
     NotificationsModule,
     PlanTemplatesModule,
+    StripeModule,
+    ChallengesModule,
+    InvitationModule,
+    FriendshipModule,
+    MessageModule,
+    NotifContactsModule,
+    CallModule,
+    YoutubeTrendsModule,
+    YoutubeAuthModule,
+    InstagramAuthModule,
     AiImageGeneratorModule,
     TrendingHashtagsModule,
     PostAnalyzerModule,
@@ -86,10 +103,6 @@ import { YoutubeTrendsModule } from './youtube-trends/youtube-trends.module';
     OptimalTimingModule,
     ImageEditorModule,
     AdvancedShareModule,
-    VideoEditorModule,
-    YoutubeAuthModule,
-    InstagramAuthModule,
-    YoutubeTrendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

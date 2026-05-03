@@ -7,8 +7,9 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
 import { N8nWebhookService, N8nEvent } from '../n8n/n8n-webhook.service';
+import { LogsService } from '../logs/logs.service';
 
 /** Convert Mongoose document to plain object so ClassSerializerInterceptor doesn't break. */
 function toPlainUser(user: User | UserDocument): Record<string, unknown> {
@@ -44,7 +45,7 @@ export class AuthService {
             name: registerDto.name,
             phone: registerDto.phone,
             status: 'pending',
-            role: 'USER',
+            role: UserRole.USER,
         });
 
         const code = generateSixDigitCode();

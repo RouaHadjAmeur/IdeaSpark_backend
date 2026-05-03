@@ -113,6 +113,20 @@ class SmartRotation {
 
 const SmartRotationSchema = SchemaFactory.createForClass(SmartRotation);
 
+@Schema()
+export class Product {
+    @Prop()
+    id: string;
+
+    @Prop({ required: true })
+    name: string;
+
+    @Prop()
+    imageUrl?: string;
+}
+
+const ProductSchema = SchemaFactory.createForClass(Product);
+
 // ─── Main Brand document ───
 
 export type BrandDocument = Brand & Document;
@@ -189,6 +203,10 @@ export class Brand {
     // Smart rotation
     @Prop({ type: SmartRotationSchema })
     smartRotation?: SmartRotation;
+
+    @ApiProperty({ type: [Product], required: false })
+    @Prop({ type: [ProductSchema], default: [] })
+    products: Product[];
 
     // Auth
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })

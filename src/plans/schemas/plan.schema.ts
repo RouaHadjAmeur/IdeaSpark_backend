@@ -43,6 +43,12 @@ export enum ContentBlockStatus {
     EDITED = 'edited',
 }
 
+export enum PhaseStatus {
+    TERMINATED = 'terminated',
+    IN_PROGRESS = 'in_progress',
+    UPCOMING = 'upcoming',
+}
+
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
 export interface ContentMixPreference {
@@ -84,6 +90,18 @@ export class ContentBlock {
 
     @Prop({ enum: Object.values(ContentBlockStatus), default: ContentBlockStatus.DRAFT })
     status: ContentBlockStatus;
+
+    @Prop({ type: String, default: '' })
+    hook: string;
+
+    @Prop({ type: String, default: '' })
+    caption: string;
+
+    @Prop({ type: Boolean, default: false })
+    hookGenerated: boolean;
+
+    @Prop({ type: Boolean, default: false })
+    captionGenerated: boolean;
 }
 
 const ContentBlockSchema = SchemaFactory.createForClass(ContentBlock);
@@ -105,6 +123,12 @@ export class Phase {
 
     @Prop({ type: [ContentBlockSchema], default: [] })
     contentBlocks: ContentBlock[];
+
+    @Prop({ enum: Object.values(PhaseStatus), default: PhaseStatus.UPCOMING })
+    status: PhaseStatus;
+
+    @Prop({ type: [String], default: [] })
+    productIds: string[];
 }
 
 const PhaseSchema = SchemaFactory.createForClass(Phase);
@@ -166,6 +190,18 @@ export class SkillDNA {
 }
 
 @Schema({ _id: false })
+export class BudgetDNA {
+    @Prop({ default: 0 })
+    totalBudget: number;
+
+    @Prop({ default: 0 })
+    spentBudget: number;
+
+    @Prop({ type: [Object], default: [] })
+    platformROAS: Array<{ platform: string; roas: number; percentage: number }>;
+}
+
+@Schema({ _id: false })
 export class PerformanceDNA {
     @Prop({ default: 0 })
     readinessScore: number;
@@ -175,6 +211,18 @@ export class PerformanceDNA {
 
     @Prop({ type: [String], default: [] })
     blockers: string[];
+
+    @Prop({ default: 0 })
+    consistencyScore: number;
+
+    @Prop({ default: 0 })
+    engagementScore: number;
+
+    @Prop({ default: 0 })
+    budgetScore: number;
+
+    @Prop({ default: 0 })
+    timingScore: number;
 }
 
 @Schema({ _id: false })
@@ -193,6 +241,9 @@ export class ProjectDNA {
 
     @Prop({ type: PerformanceDNA, default: () => ({}) })
     performance: PerformanceDNA;
+
+    @Prop({ type: BudgetDNA, default: () => ({}) })
+    budget: BudgetDNA;
 }
 
 const ProjectDNASchema = SchemaFactory.createForClass(ProjectDNA);
@@ -265,6 +316,9 @@ export class Plan {
 
     @Prop({ type: String, default: null })
     lastNoteAuthorId: string | null;
+
+    @Prop({ type: [String], default: [] })
+    collaboratorIds: string[];
 
     createdAt: Date;
     updatedAt: Date;

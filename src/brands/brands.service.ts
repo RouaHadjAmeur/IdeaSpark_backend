@@ -13,6 +13,8 @@ import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { UsersService } from '../users/users.service';
 import { CollaborationGateway } from '../collaboration/gateways/collaboration.gateway';
+import { Plan, PlanDocument, PlanStatus, PlanObjective } from '../plans/schemas/plan.schema';
+import { UserRole } from '../users/schemas/user.schema';
 
 export interface PaginatedBrands {
     data: Brand[];
@@ -29,6 +31,7 @@ export class BrandsService {
     constructor(
         @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
         @InjectModel(BrandCollaborator.name) private brandCollabModel: Model<BrandCollaboratorDocument>,
+        @InjectModel(Plan.name) private planModel: Model<PlanDocument>,
         private usersService: UsersService,
         private readonly gateway: CollaborationGateway,
     ) { }
@@ -49,7 +52,37 @@ export class BrandsService {
 
         try {
             const brand = new this.brandModel({ ...createBrandDto, userId });
-            return await brand.save();
+            const savedBrand = await brand.save();
+
+            // Auto-create default strategy
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 90); // Default 3 months
+
+            const defaultPlan = new this.planModel({
+                userId,
+                brandId: (savedBrand as any).id ?? savedBrand._id.toString(),
+                name: `${savedBrand.name} Strategy`,
+                objective: PlanObjective.BRAND_AWARENESS,
+                startDate,
+                endDate,
+                durationWeeks: 12,
+                platforms: savedBrand.platforms || [],
+                status: PlanStatus.DRAFT,
+                phases: [],
+                projectDNA: {
+                    performance: { consistencyScore: 90, engagementScore: 85, budgetScore: 80, timingScore: 95 },
+                    budget: { totalBudget: 1000, spentBudget: 0, platformROAS: [] }
+                }
+            });
+            await defaultPlan.save();
+
+            // Auto-upgrade user role to BRAND_OWNER if not already
+            if (user.role !== UserRole.BRAND_OWNER) {
+                await this.usersService.updateUserRole(userId, UserRole.BRAND_OWNER);
+            }
+
+            return savedBrand;
         } catch (error) {
             if (error.code === 11000) {
                 throw new ConflictException(
