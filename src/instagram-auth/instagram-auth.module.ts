@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { InstagramAuthController } from './instagram-auth.controller';
 import { InstagramAuthService } from './instagram-auth.service';
+import { TrendingAudioService } from './trending-audio.service';
 import {
   InstagramAccount,
   InstagramAccountSchema,
@@ -19,8 +20,7 @@ import {
     ]),
   ],
   controllers: [InstagramAuthController],
-  providers: [InstagramAuthService],
+  providers: [InstagramAuthService, TrendingAudioService],
   exports: [InstagramAuthService],
 })
 export class InstagramAuthModule {}
-

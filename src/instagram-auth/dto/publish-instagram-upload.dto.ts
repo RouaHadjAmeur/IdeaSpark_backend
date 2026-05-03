@@ -20,6 +20,10 @@ export class PublishInstagramUploadDto {
   })
   @IsBoolean()
   shareToFeed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  audioUrl?: string;
 }
 
 

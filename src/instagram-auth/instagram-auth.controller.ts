@@ -27,6 +27,7 @@ import { PublishInstagramDto } from './dto/publish-instagram.dto';
 import { PublishInstagramUploadDto } from './dto/publish-instagram-upload.dto';
 import { StartInstagramOauthDto } from './dto/start-instagram-oauth.dto';
 import { InstagramAuthService } from './instagram-auth.service';
+import { TrendingAudioService } from './trending-audio.service';
 
 const ONE_GB = 1024 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -45,7 +46,10 @@ const ALLOWED_VIDEO_EXTENSIONS = new Set([
 @ApiTags('Instagram Publishing')
 @Controller('instagram-auth')
 export class InstagramAuthController {
-  constructor(private readonly instagramAuthService: InstagramAuthService) {}
+  constructor(
+    private readonly instagramAuthService: InstagramAuthService,
+    private readonly trendingAudioService: TrendingAudioService,
+  ) {}
 
   @Post('start')
   @UseGuards(JwtAuthGuard)
@@ -75,6 +79,50 @@ export class InstagramAuthController {
   async getCurrentConnection(@CurrentUser() user: any) {
     const userId = user.id || user._id?.toString();
     return this.instagramAuthService.getCurrentConnection(userId);
+  }
+
+  @Get('insights')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get high-level insights for connected Instagram account' })
+  async getInsights(@CurrentUser() user: any) {
+    const userId = user.id || user._id?.toString();
+    return this.instagramAuthService.getInsights(userId);
+  }
+
+  @Get('insights/views')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get detailed views analytics' })
+  async getViewsDetails(@CurrentUser() user: any) {
+    const userId = user.id || user._id?.toString();
+    return this.instagramAuthService.getViewsDetails(userId);
+  }
+
+  @Get('insights/interactions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get detailed interactions analytics' })
+  async getInteractionsDetails(@CurrentUser() user: any) {
+    const userId = user.id || user._id?.toString();
+    return this.instagramAuthService.getInteractionsDetails(userId);
+  }
+
+  @Get('insights/followers')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get detailed followers analytics' })
+  async getFollowersDetails(@CurrentUser() user: any) {
+    const userId = user.id || user._id?.toString();
+    return this.instagramAuthService.getFollowersDetails(userId);
+  }
+
+  @Get('insights/trending-audio')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get trending audio list' })
+  async getTrendingAudio() {
+    return this.trendingAudioService.getTrendingAudio();
   }
 
   @Delete('disconnect')

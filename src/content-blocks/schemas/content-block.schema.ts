@@ -114,9 +114,9 @@ export class ContentBlock {
     @Prop({ type: [String], default: [] })
     tags: string[];
 
-    // ─ Production checklist
-    @Prop({ type: Map, of: Boolean, default: {} })
-    productionChecklist: Map<string, boolean>;
+    // ─ Generated image
+    @Prop({ type: String, default: null })
+    imageUrl: string | null;
 
     // ─ Scheduling
     @Prop({ type: Date, default: null })

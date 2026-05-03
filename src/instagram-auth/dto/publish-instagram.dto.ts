@@ -15,5 +15,9 @@ export class PublishInstagramDto {
   @IsOptional()
   @IsBoolean()
   shareToFeed?: boolean;
+
+  @IsOptional()
+  @IsUrl()
+  audioUrl?: string;
 }
 
