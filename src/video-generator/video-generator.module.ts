@@ -7,6 +7,7 @@ import { OpenAIService } from './openai.service';
 import { PersonaModule } from '../persona/persona.module';
 import { VideoIdeaAiService } from './video-idea-ai.service';
 import { VideoIdeaAiController } from './video-idea-ai.controller';
+import { PexelsService } from './pexels.service';
 
 @Module({
     imports: [
@@ -14,6 +15,6 @@ import { VideoIdeaAiController } from './video-idea-ai.controller';
         PersonaModule, // Import PersonaModule to use PersonaService
     ],
     controllers: [VideoGeneratorController, VideoIdeaAiController],
-    providers: [VideoGeneratorService, OpenAIService, VideoIdeaAiService],
+    providers: [VideoGeneratorService, OpenAIService, VideoIdeaAiService, PexelsService],
 })
 export class VideoGeneratorModule { }

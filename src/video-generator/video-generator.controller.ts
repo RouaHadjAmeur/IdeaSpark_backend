@@ -5,6 +5,8 @@ import { VideoGeneratorService } from './video-generator.service';
 import { CreateVideoRequestDto } from './dto/create-video-request.dto';
 import { CreateVideoIdeaDto } from './dto/create-video-idea.dto';
 import { RefineVideoIdeaDto } from './dto/refine-video-idea.dto';
+import { SearchVideoDto } from './dto/search-video.dto';
+import { PexelsService } from './pexels.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -12,7 +14,27 @@ import { extname } from 'path';
 @ApiTags('Video Generator')
 @Controller('video-generator')
 export class VideoGeneratorController {
-    constructor(private readonly videoGeneratorService: VideoGeneratorService) { }
+    constructor(
+        private readonly videoGeneratorService: VideoGeneratorService,
+        private readonly pexelsService: PexelsService,
+    ) { }
+
+    @Post('search')
+    @ApiOperation({
+        summary: 'Search for a stock video (Pexels)',
+        description: 'Find a relevant video on Pexels based on a query.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Video found successfully',
+    })
+    search(@Body() searchVideoDto: SearchVideoDto) {
+        return this.pexelsService.searchVideos(
+            searchVideoDto.query,
+            searchVideoDto.orientation,
+            searchVideoDto.size,
+        );
+    }
 
     @Post('generate')
     @UseInterceptors(FileInterceptor('productImage', {
