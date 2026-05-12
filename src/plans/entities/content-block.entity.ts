@@ -26,9 +26,13 @@ export enum CtaType {
 }
 
 export enum ContentBlockStatus {
-    DRAFT     = 'draft',
-    SCHEDULED = 'scheduled',
-    EDITED    = 'edited',
+    EMPTY              = 'empty',
+    DRAFT              = 'draft',
+    SUBMITTED          = 'submitted',
+    APPROVED           = 'approved',
+    SCHEDULED          = 'scheduled',
+    PUBLISHED          = 'published',
+    REVISION_REQUESTED = 'revisionRequested',
 }
 
 // ─── Entity ──────────────────────────────────────────────────
@@ -82,7 +86,7 @@ export class ContentBlock {
     @Column({
         type: 'enum',
         enum: ContentBlockStatus,
-        default: ContentBlockStatus.DRAFT,
+        default: ContentBlockStatus.EMPTY,
     })
     status: ContentBlockStatus;
 

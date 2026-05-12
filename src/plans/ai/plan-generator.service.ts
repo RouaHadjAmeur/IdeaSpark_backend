@@ -190,7 +190,7 @@ ${rotation ? `- Ensure at least ${rotation.minGapBetweenPromotions} days gap bet
 ═══════════════════════════════════════
 PHASE STRATEGY
 ═══════════════════════════════════════
-Structure the ${plan.durationWeeks} weeks into ${this.suggestPhaseCount(plan.durationWeeks)} phases.
+Structure the ${plan.durationWeeks} weeks into ${plan.phaseCount ?? this.suggestPhaseCount(plan.durationWeeks)} phases.
 Common phase names: Tease, Launch, Educate, Engage, Retarget, Close, Loyalty.
 Each phase must have a distinct strategic purpose.
 Week numbers must be 1-based and cover all ${plan.durationWeeks} weeks.

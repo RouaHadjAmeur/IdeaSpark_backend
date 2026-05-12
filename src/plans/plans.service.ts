@@ -22,6 +22,7 @@ import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateCampaignCopyDto } from './dto/update-campaign-copy.dto';
+import { UpdateBlockStatusDto } from './dto/update-block-status.dto';
 import { PlanGeneratorService, BrandContext } from './ai/plan-generator.service';
 import { CtaType } from './schemas/plan.schema';
 import { CollaborationService } from '../collaboration/collaboration.service';
@@ -208,7 +209,7 @@ export class PlansService {
                 emotionalTrigger: aiBlock.emotionalTrigger || null,
                 recommendedDayOffset: aiBlock.recommendedDayOffset,
                 recommendedTime: aiBlock.recommendedTime || null,
-                status: ContentBlockStatus.DRAFT,
+                status: ContentBlockStatus.EMPTY,
                 hook: '',
                 caption: '',
                 hookGenerated: false,
@@ -244,7 +245,7 @@ export class PlansService {
 
         return this.planModel
             .findOneAndUpdate({ _id: planId, userId }, { $set: { status: PlanStatus.ACTIVE } }, { new: true })
-            .exec() as Promise<PlanDocument>;
+            .exec() as any as Promise<PlanDocument>;
     }
 
     // ─── convertPlanToCalendar ───────────────────────────────────────────────────
@@ -467,7 +468,7 @@ export class PlansService {
                 arrayFilters: [{ 'block._id': new Types.ObjectId(blockId) }],
                 new: true 
             }
-        ).exec() as Promise<PlanDocument>;
+        ).exec() as any as Promise<PlanDocument>;
     }
 
     async generateCaption(planId: string, blockId: string, userId: string): Promise<PlanDocument> {
@@ -489,7 +490,30 @@ export class PlansService {
                 arrayFilters: [{ 'block._id': new Types.ObjectId(blockId) }],
                 new: true 
             }
-        ).exec() as Promise<PlanDocument>;
+        ).exec() as any as Promise<PlanDocument>;
+    }
+
+    async updateBlockStatus(planId: string, blockId: string, status: ContentBlockStatus, userId: string): Promise<PlanDocument> {
+        await this.findOne(planId, userId); // ownership check
+
+        const updated = await this.planModel.findOneAndUpdate(
+            { _id: planId, 'phases.contentBlocks._id': new Types.ObjectId(blockId) },
+            { 
+                $set: { 
+                    'phases.$[].contentBlocks.$[block].status': status 
+                } 
+            },
+            { 
+                arrayFilters: [{ 'block._id': new Types.ObjectId(blockId) }],
+                new: true 
+            }
+        ).exec() as any as PlanDocument;
+
+        if (!updated) throw new NotFoundException(`Block ${blockId} not found in plan ${planId}`);
+        
+        await this.collaborationService.logActivity(planId, userId, 'User', 'update', 'block_status', '', status);
+        
+        return updated;
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────────

@@ -40,16 +40,17 @@ export class VideoIdeaAiService {
         this.model = this.configService.get<string>('OPENAI_MODEL') || 'gpt-4o-mini';
     }
 
-    async generate(dto: GenerateVideoIdeaDto): Promise<ContentBlockGenerationResult> {
+    async generate(dto: GenerateVideoIdeaDto): Promise<ContentBlockGenerationResult[]> {
         const apiKey = this.configService.get<string>('OPENAI_API_KEY');
         if (!apiKey) {
             throw new Error('OPENAI_API_KEY is not configured. Please set it in your .env file to use video generation features.');
         }
-        
-        const systemPrompt = this.buildSystemPrompt(dto);
+
+        const batchSize = dto.batchSize || 1;
+        const systemPrompt = this.buildSystemPrompt(dto, batchSize);
         const userPrompt = this.buildUserPrompt(dto);
 
-        this.logger.log(`Generating ContentBlock video idea for product: ${dto.productName}`);
+        this.logger.log(`Generating ${batchSize} ContentBlock video ideas for product: ${dto.productName}`);
 
         const response = await this.openai.chat.completions.create({
             model: this.model,
@@ -58,18 +59,22 @@ export class VideoIdeaAiService {
                 { role: 'user', content: userPrompt },
             ],
             temperature: 0.9,
-            max_tokens: 1500,
+            max_tokens: 1500 * batchSize,
         });
 
         const text = response.choices[0]?.message?.content || '';
-        return this.parseResponse(text, dto);
+        if (batchSize > 1) {
+            return this.parseMultipleIdeas(text, dto.productName);
+        } else {
+            return [this.parseResponse(text, dto)];
+        }
     }
 
     // ─── System prompt — ContentBlock structured output ───────────────────────
 
-    private buildSystemPrompt(dto: GenerateVideoIdeaDto): string {
+    private buildSystemPrompt(dto: GenerateVideoIdeaDto, batchSize: number = 1): string {
         const platformCtx = dto.platform ? `Target platform: ${dto.platform}.` : '';
-        const toneCtx = dto.brandTone ? `Brand tone: ${dto.brandTone}.` : '';
+        const toneCtx = dto.brandTone || dto.tone ? `Brand tone: ${dto.brandTone || dto.tone}.` : '';
         const phaseCtx = dto.activePlanPhase
             ? `Current campaign phase: ${dto.activePlanPhase} (Week ${dto.currentWeek ?? '?'}).`
             : '';
@@ -86,8 +91,12 @@ export class VideoIdeaAiService {
             ? `Current promo ratio from BI: ${(dto.promoRatio * 100).toFixed(0)}%. ${dto.promoRatio > 0.4 ? 'Prefer educational/soft-cta content to balance.' : ''}`
             : '';
 
+        const formatDesc = batchSize > 1 
+            ? `Return ONLY a valid JSON array containing exactly ${batchSize} objects`
+            : `Return ONLY a valid JSON object`;
+
         return `You are an expert content strategist specializing in short-form video content for social media.
-Your task is to generate ONE highly specific, actionable video idea as a structured ContentBlock JSON.
+Your task is to generate ${batchSize} highly specific, actionable video ideas as structured ContentBlock JSON.
 
 Context:
 ${platformCtx}
@@ -98,7 +107,7 @@ ${phaseCtx}
 ${promoCtx}
 ${calCtx}
 
-RESPONSE FORMAT: Return ONLY a valid JSON object with this exact structure (no markdown, no code blocks):
+RESPONSE FORMAT: ${formatDesc} with this exact structure (no markdown, no code blocks):
 {
   "title": "Short, punchy content idea title (max 80 chars)",
   "hooks": [
@@ -177,6 +186,136 @@ Generate a creative, engaging ContentBlock video idea in ${lang}. Make it highly
                 format: ContentFormat.REEL,
                 tags: [],
             };
+        }
+    }
+
+    // ─── Image Analysis ─────────────────────────────────────────────────────
+
+    async analyzeImage(imageUrl: string, brandName: string): Promise<{ productInfo: any; ideas: ContentBlockGenerationResult[] }> {
+        const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+        if (!apiKey) {
+            throw new Error('OPENAI_API_KEY is not configured.');
+        }
+
+        this.logger.log(`Analyzing image for brand: ${brandName}`);
+
+        // Step 1: Use vision model to extract structured product info
+        const visionResponse = await this.openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: `You are a product analyst. Analyze this product image and extract structured information.
+                            
+                            Return ONLY a valid JSON object with this structure:
+                            {
+                              "productName": "Name of the product",
+                              "category": "Main category (e.g. Beauty, Tech, Food)",
+                              "description": "Short description of the product",
+                              "keyBenefits": ["benefit 1", "benefit 2", "benefit 3"],
+                              "targetAudience": "Description of the ideal buyer",
+                              "ingredients": "List of visible ingredients or materials",
+                              "features": "Key technical or physical features",
+                              "usp": "Unique Selling Point"
+                            }
+                            
+                            Brand name: ${brandName}. Be accurate and professional.`,
+                        },
+                        {
+                            type: 'image_url',
+                            image_url: { url: imageUrl },
+                        },
+                    ],
+                },
+            ],
+            max_tokens: 1000,
+            response_format: { type: 'json_object' }
+        });
+
+        const visionText = visionResponse.choices[0]?.message?.content || '{}';
+        let productInfo = {};
+        try {
+            productInfo = JSON.parse(visionText);
+        } catch (e) {
+            this.logger.error('Failed to parse vision JSON', e);
+        }
+
+        this.logger.log(`Product info extracted: ${JSON.stringify(productInfo)}`);
+
+        // Step 2: Generate 3 video ideas based on the product info
+        const ideasResponse = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are an expert content strategist. Based on product information, generate exactly 3 creative short-form video ideas.
+            
+            RESPONSE FORMAT: Return ONLY a valid JSON array with 3 objects, each with this structure (no markdown, no code blocks):
+            [
+              {
+                "title": "Short, punchy title (max 80 chars)",
+                "hooks": ["Hook 1", "Hook 2", "Hook 3"],
+                "scriptOutline": "Brief scene-by-scene outline",
+                "contentType": "one of: educational | promo | teaser | launch | social_proof | objection | behind_scenes | authority",
+                "ctaType": "one of: soft | hard | educational",
+                "platform": "instagram",
+                "format": "reel",
+                "description": "1-2 sentence brief",
+                "productSuggestion": "product name",
+                "tags": ["tag1", "tag2", "tag3"]
+              }
+            ]`,
+                },
+                {
+                    role: 'user',
+                    content: `Brand: ${brandName}\nProduct Info: ${JSON.stringify(productInfo)}\n\nGenerate 3 diverse, creative video ideas for this product.`,
+                },
+            ],
+            temperature: 0.9,
+            max_tokens: 3000,
+        });
+
+        const text = ideasResponse.choices[0]?.message?.content || '[]';
+        const ideas = this.parseMultipleIdeas(text, brandName);
+        
+        return { productInfo, ideas };
+    }
+
+    private parseMultipleIdeas(text: string, brandName: string): ContentBlockGenerationResult[] {
+        try {
+            const jsonMatch = text.match(/\[[\s\S]*\]/);
+            if (!jsonMatch) throw new Error('No JSON array in response');
+            const parsed = JSON.parse(jsonMatch[0]);
+
+            if (!Array.isArray(parsed)) throw new Error('Response is not an array');
+
+            return parsed.map((item: any) => ({
+                title: item.title || `Video Idea: ${brandName}`,
+                hooks: Array.isArray(item.hooks) ? item.hooks : [item.hooks || ''],
+                scriptOutline: item.scriptOutline || '',
+                contentType: this.validateEnum(item.contentType, ContentType, ContentType.EDUCATIONAL),
+                ctaType: this.validateEnum(item.ctaType, ContentCtaType, ContentCtaType.SOFT),
+                platform: this.validateEnum(item.platform, ContentPlatform, ContentPlatform.INSTAGRAM),
+                format: this.validateEnum(item.format, ContentFormat, ContentFormat.REEL),
+                description: item.description || null,
+                productSuggestion: item.productSuggestion || null,
+                tags: Array.isArray(item.tags) ? item.tags : [],
+            }));
+        } catch (err) {
+            this.logger.warn(`Failed to parse multi-idea response: ${err}`);
+            return [{
+                title: `Video Idea: ${brandName}`,
+                hooks: ['Check this out — you won\'t believe what this product can do!'],
+                scriptOutline: 'Hook → Product showcase → Benefits → CTA',
+                contentType: ContentType.EDUCATIONAL,
+                ctaType: ContentCtaType.SOFT,
+                platform: ContentPlatform.INSTAGRAM,
+                format: ContentFormat.REEL,
+                tags: [],
+            }];
         }
     }
 

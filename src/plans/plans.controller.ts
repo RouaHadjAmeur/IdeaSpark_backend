@@ -27,6 +27,7 @@ import { PlansService } from './plans.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateCampaignCopyDto } from './dto/update-campaign-copy.dto';
+import { UpdateBlockStatusDto } from './dto/update-block-status.dto';
 import { DashboardAlertsService } from './ai/dashboard-alerts.service';
 import { DashboardAlertsRequestDto, DashboardAlertsResponseDto } from './dto/dashboard-alerts.dto';
 
@@ -229,5 +230,18 @@ export class PlansController {
         @CurrentUser() user: User,
     ) {
         return this.plansService.generateCaption(id, blockId, this.resolveUserId(user));
+    }
+
+    @Patch(':id/blocks/:blockId/status')
+    @ApiOperation({ summary: 'Update the status of a specific content block' })
+    @ApiParam({ name: 'id', description: 'Plan ID' })
+    @ApiParam({ name: 'blockId', description: 'Content Block ID' })
+    updateBlockStatus(
+        @Param('id') id: string,
+        @Param('blockId') blockId: string,
+        @Body() dto: UpdateBlockStatusDto,
+        @CurrentUser() user: User,
+    ) {
+        return this.plansService.updateBlockStatus(id, blockId, dto.status, this.resolveUserId(user));
     }
 }

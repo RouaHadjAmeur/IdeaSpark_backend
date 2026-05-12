@@ -1,16 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OptimalTimingService {
   private genAI: GoogleGenerativeAI;
   private model;
 
-  constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
+  constructor(private configService: ConfigService) {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    const modelName = this.configService.get<string>('GEMINI_MODEL') || 'gemini-1.5-flash-latest';
+    
     if (apiKey && apiKey !== 'your_gemini_api_key_here') {
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      this.model = this.genAI.getGenerativeModel({ model: modelName });
     }
   }
 

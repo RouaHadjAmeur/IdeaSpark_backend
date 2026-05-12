@@ -10,7 +10,7 @@ export class StripeService {
     const secretKey =
       this.configService.get<string>('STRIPE_SECRET_KEY') ||
       'sk_test_REPLACE_WITH_YOUR_STRIPE_SECRET_KEY';
-    this.stripe = new Stripe(secretKey, { apiVersion: '2026-03-25.dahlia' });
+    this.stripe = new Stripe(secretKey, { apiVersion: '2026-04-22.dahlia' });
   }
 
   async createOrFindCustomer(email: string, name: string): Promise<string> {

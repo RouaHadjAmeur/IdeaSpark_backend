@@ -112,4 +112,45 @@ export class GenerateVideoIdeaDto {
     @IsOptional()
     @IsString()
     planPhaseId?: string;
+    @ApiPropertyOptional({ example: 5 })
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(10)
+    batchSize?: number;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    tone?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    goal?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    creatorType?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    duration?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    targetAudience?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    price?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    offer?: string;
 }

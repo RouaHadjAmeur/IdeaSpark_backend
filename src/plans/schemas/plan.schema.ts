@@ -38,9 +38,13 @@ export enum CtaType {
 }
 
 export enum ContentBlockStatus {
+    EMPTY = 'empty',
     DRAFT = 'draft',
+    SUBMITTED = 'submitted',
+    APPROVED = 'approved',
     SCHEDULED = 'scheduled',
-    EDITED = 'edited',
+    PUBLISHED = 'published',
+    REVISION_REQUESTED = 'revisionRequested',
 }
 
 export enum PhaseStatus {
@@ -88,7 +92,7 @@ export class ContentBlock {
     @Prop({ type: String, default: null })
     recommendedTime: string | null;
 
-    @Prop({ enum: Object.values(ContentBlockStatus), default: ContentBlockStatus.DRAFT })
+    @Prop({ enum: Object.values(ContentBlockStatus), default: ContentBlockStatus.EMPTY })
     status: ContentBlockStatus;
 
     @Prop({ type: String, default: '' })
@@ -280,6 +284,9 @@ export class Plan {
 
     @Prop({ default: 3 })
     postingFrequency: number;
+
+    @Prop({ default: 4 })
+    phaseCount: number;
 
     @Prop({ type: [String], default: [] })
     platforms: string[];

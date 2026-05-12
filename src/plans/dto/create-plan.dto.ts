@@ -81,6 +81,13 @@ export class CreatePlanDto {
     @IsOptional()
     postingFrequency?: number;
 
+    @ApiPropertyOptional({ example: 4, minimum: 1, maximum: 12 })
+    @IsInt()
+    @Min(1)
+    @Max(12)
+    @IsOptional()
+    phaseCount?: number;
+
     @ApiPropertyOptional({ example: ['instagram', 'tiktok'] })
     @IsArray()
     @IsString({ each: true })

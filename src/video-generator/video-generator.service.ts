@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Video } from './schemas/video.schema';
+import { VideoIdea } from './schemas/video-idea.schema';
 import { CreateVideoDto } from './dto/create-video.dto';
 import axios from 'axios';
 
@@ -10,7 +11,48 @@ export class VideoGeneratorService {
   private readonly pexelsApiKey = process.env.PEXELS_API_KEY;
   private readonly pexelsApiUrl = 'https://api.pexels.com/videos/search';
 
-  constructor(@InjectModel(Video.name) private videoModel: Model<Video>) {}
+  constructor(
+    @InjectModel(Video.name) private videoModel: Model<Video>,
+    @InjectModel(VideoIdea.name) private videoIdeaModel: Model<VideoIdea>,
+  ) {}
+
+  async saveIdea(userId: string, ideaData: any): Promise<VideoIdea> {
+    const idea = new this.videoIdeaModel({
+      ...ideaData,
+      userId,
+    });
+    return idea.save();
+  }
+
+  async getIdeaHistory(userId: string): Promise<VideoIdea[]> {
+    return this.videoIdeaModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async getIdeaFavorites(userId: string): Promise<VideoIdea[]> {
+    return this.videoIdeaModel
+      .find({ userId, isFavorite: true })
+      .sort({ updatedAt: -1 })
+      .exec();
+  }
+
+  async toggleIdeaFavorite(ideaId: string): Promise<VideoIdea> {
+    const idea = await this.videoIdeaModel.findById(ideaId);
+    if (!idea) throw new HttpException('Idée non trouvée', HttpStatus.NOT_FOUND);
+    
+    idea.isFavorite = !idea.isFavorite;
+    return idea.save();
+  }
+
+  async deleteIdea(ideaId: string, userId: string): Promise<void> {
+    const idea = await this.videoIdeaModel.findById(ideaId);
+    if (!idea) throw new HttpException('Idée non trouvée', HttpStatus.NOT_FOUND);
+    if (idea.userId !== userId) throw new HttpException('Non autorisé', HttpStatus.FORBIDDEN);
+    
+    await this.videoIdeaModel.findByIdAndDelete(ideaId);
+  }
 
   async generateVideo(userId: string, createVideoDto: CreateVideoDto): Promise<Video> {
     try {
